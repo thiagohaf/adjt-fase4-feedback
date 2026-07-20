@@ -1,0 +1,10 @@
+.DS_Store
+**/.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+.idea/
+.vscode/
+*.log
