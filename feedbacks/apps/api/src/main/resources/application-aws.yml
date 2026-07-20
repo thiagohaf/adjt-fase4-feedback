@@ -1,0 +1,8 @@
+spring:
+  config:
+    activate:
+      on-profile: aws
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}

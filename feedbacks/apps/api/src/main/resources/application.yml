@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: feedbacks-api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/feedbacks
+    username: feedbacks
+    password: feedbacks
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-min-256-bits-for-hs256-demo}
+    expiration: 24h
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+server:
+  error:
+    include-message: never
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] traceId=%X{traceId} %-5level %logger{36} - %msg%n"
