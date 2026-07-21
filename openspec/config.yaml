@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  Projeto: adjt-fase4 — Plataforma de Feedbacks FIAP (Tech Challenge Fase 4).
+  API REST autenticada (sem UI; Postman + e-mail) com alerta assíncrono e relatórios.
+
+  Tech stack: Java 17, Quarkus 3.33 LTS (BOM quarkus-bom), Hibernate ORM,
+  PostgreSQL + Flyway, SmallRye JWT (HS256), SmallRye Health, JaCoCo (gate >= 90%),
+  @QuarkusTest + RestAssured, JUnit 5 + Mockito. AWS sa-east-1: ECS Fargate + ALB,
+  RDS, SQS + DLQ, EventBridge, SES, S3, Lambdas via quarkus-amazon-lambda, CDK.
+
+  Arquitetura: Modular Monolith Layered + Async Side Effects, hexagonal (ports &
+  adapters); direcao de dependencia api -> application -> domain <- infrastructure.
+  Fonte de verdade arquitetural (ADs, invariantes, convencoes):
+  _bmad-output/planning-artifacts/architecture/architecture-adjt-fase4-2026-07-20/ARCHITECTURE-SPINE.md
+
+  Specs de modulos pre-existentes (formato proposal/specs/design) vivem em
+  openspec/modules/ — o modulo 01 (autenticacao e papeis) e a fonte de verdade
+  funcional da implementacao de auth.
+
+  Convencoes: commits convencionais; HTTP prefixo /api/v1/, JSON camelCase,
+  erros { code, message, traceId }; papeis ESTUDANTE | ADMINISTRADOR; JWT HS256
+  com claim role; secrets via Secrets Manager (jwtSecret, dbUrl/dbUser/dbPassword,
+  adminEmail); config application.properties com profiles %local/%aws.
+  Idioma dos documentos: Portugues Brasileiro.
