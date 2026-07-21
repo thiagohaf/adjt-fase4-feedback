@@ -15,13 +15,16 @@ Detalhes técnicos, stack e decisões de mecanismo que não pertencem ao PRD de 
 
 ## Stack (do brief/addendum do brief)
 
+> Atualizado em 2026-07-21 pela Sprint Change Proposal (Spring Boot → Quarkus) — ver
+> `_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-21.md`.
+
 | Camada | Tecnologia |
 |--------|------------|
-| Linguagem / Framework | Java 17, Spring Boot 3.4.5 |
-| Segurança | Spring Security, JWT completo |
-| Persistência | Spring Data JPA, PostgreSQL, Flyway |
+| Linguagem / Framework | Java 17, Quarkus 3.33 LTS |
+| Segurança | Quarkus Security + SmallRye JWT (HS256) |
+| Persistência | Hibernate ORM (Panache), PostgreSQL, Flyway |
 | Mensageria | Kafka (Docker Compose local); **SQS** (produção AWS) |
-| Resiliência | Resilience4j |
+| Resiliência | SmallRye Fault Tolerance |
 | API cloud | ECS Fargate (0.25 vCPU), `sa-east-1` |
 | Serverless | Lambda notificação; Lambda relatório (período diário\|semanal); EventBridge crons |
 | E-mail / arquivos | SES; PDF no S3 |
