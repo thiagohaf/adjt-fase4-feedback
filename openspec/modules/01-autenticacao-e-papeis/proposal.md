@@ -46,7 +46,7 @@ O enunciado e o PRD exigem JWT completo: emissão no login, validação em rotas
 | --- | --- | --- |
 | 1 | **Login e emissão de JWT** | `POST /api/v1/auth/login` público; credenciais válidas retornam JWT utilizável. |
 | 2 | **Validação de token** | Rotas de negócio exigem `Authorization: Bearer <JWT>`; token inválido/expirado → acesso negado. |
-| 3 | **Autorização por papel** | Claim `role` ∈ {`ESTUDANTE`, `ADMINISTRADOR`}; matriz de rotas enforced server-side (Spring Security). |
+| 3 | **Autorização por papel** | Claim `role` ∈ {`ESTUDANTE`, `ADMINISTRADOR`}; matriz de rotas enforced server-side (Quarkus Security). |
 | 4 | **Persistência de usuários** | Entidade `Usuario` com email, senha (hash BCrypt) e papel; seed Flyway para demo. |
 | 5 | **Segredos** | `jwtSecret` em variável de ambiente local / Secrets Manager em AWS (AD-12). |
 | 6 | **Erros padronizados** | Corpo `{ code, message, traceId }`; 401 credenciais/token; 403 papel insuficiente. |
@@ -83,13 +83,13 @@ Derivada de AD-8; detalhada em `specs.md` e `design.md`.
 - Prefixo HTTP `/api/v1/`; login e health públicos (AD-9).
 - Segredo JWT **nunca** no código-fonte ou imagem Docker (AD-12, NFR §8).
 - Expiração JWT configurável (sugestão: 24h para demo Postman).
-- Usuários de demo criados via migration Flyway (`V1__seed_usuarios.sql`).
+- Usuários de demo criados via migration Flyway (`V2__seed_usuarios.sql`; `V1` cria o schema).
 
 ## 4. Riscos e mitigações
 
 | Risco | Mitigação |
 | --- | --- |
-| Autorização só no Postman (client-side) | Spring Security `@PreAuthorize` / `authorizeHttpRequests` server-side |
+| Autorização só no Postman (client-side) | `@RolesAllowed` server-side |
 | Secret JWT vazando no repo | Secrets Manager + `.gitignore`; validação no CI |
 | Confusão de papéis na demo | Seed com emails distintos (`estudante@demo.fiap`, `admin@demo.fiap`) documentados no Postman collection |
 | Token expirado durante gravação do vídeo | TTL generoso (24h) + re-login rápido no roteiro |
@@ -97,7 +97,7 @@ Derivada de AD-8; detalhada em `specs.md` e `design.md`.
 ## 5. Entregáveis deste módulo
 
 1. Endpoint de login funcional com JWT.
-2. Filter/Security chain validando token em rotas protegidas.
+2. Validação de token em rotas protegidas (extensão SmallRye JWT + `@RolesAllowed`).
 3. Entidade `Usuario` + repositório + seed.
 4. Testes unitários (casos de uso + token service) com cobertura JaCoCo ≥ 90% (AD-14).
 5. Documentação OpenSpec (`proposal.md`, `specs.md`, `design.md`) — este pacote.
