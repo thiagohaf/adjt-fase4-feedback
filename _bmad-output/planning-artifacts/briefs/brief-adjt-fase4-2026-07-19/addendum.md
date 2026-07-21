@@ -4,6 +4,11 @@ Conteúdo que não cabe no brief mas alimenta PRD e arquitetura.
 
 ## Stack confirmada
 
+> **Superseded (2026-07-21):** a stack abaixo (Spring Boot) foi substituída por **Java 17 + Quarkus 3.33 LTS**
+> pela Sprint Change Proposal aprovada em `_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-21.md`.
+> A tabela original é preservada como registro histórico da decisão de 2026-07-19; a stack vigente está no
+> Architecture Spine e no addendum do PRD.
+
 
 | Camada                | Tecnologia                                              |
 | --------------------- | ------------------------------------------------------- |
