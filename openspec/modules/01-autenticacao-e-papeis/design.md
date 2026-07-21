@@ -3,7 +3,7 @@
 | Campo | Valor |
 | --- | --- |
 | **Módulo** | `01-autenticacao-e-papeis` |
-| **Stack** | Java 17, Spring Boot 4.0.7, Spring Security, JWT HS256 |
+| **Stack** | Java 17, Quarkus 3.33 LTS, Quarkus Security + SmallRye JWT, JWT HS256 (`mp.jwt.verify.publickey.algorithm=HS256`; secret em Secrets Manager, chave `jwtSecret`) |
 | **Paradigma** | Hexagonal (ports & adapters) dentro do modular monolith |
 | **Status** | Rascunho para revisão |
 
@@ -15,15 +15,15 @@ O módulo de autenticação atravessa as camadas do monólito conforme AD-2:
 
 ```mermaid
 flowchart TB
+  REQ[Request HTTP] --> QS[Quarkus Security / SmallRye JWT]
+  QS --> TF
   subgraph api [api/web]
-    AC[AuthController]
-    JF[JwtAuthenticationFilter]
-    SC[SecurityConfig]
-    EH[GlobalExceptionHandler]
+    TF[TraceIdFilter ContainerRequestFilter] --> AC[AuthResource JAX-RS]
+    AC -. "erros → {code, message, traceId}" .-> EH[ExceptionMappers]
   end
   subgraph application [application]
     LU[LoginUseCase]
-    CP[CurrentUserProvider]
+    CP[CurrentUserProvider porta]
   end
   subgraph domain [domain]
     U[Usuario]
@@ -32,34 +32,34 @@ flowchart TB
   end
   subgraph infrastructure [infrastructure]
     UR[JpaUsuarioRepository]
-    TS[JwtTokenService]
+    TS[SmallRyeJwtTokenService]
     PC[PasswordEncoder BCrypt]
-    SP[SpringCurrentUserProvider]
+    SI[SecurityIdentityCurrentUserProvider]
   end
   AC --> LU
-  JF --> TS
   LU --> UR
   LU --> TS
   LU --> PC
   UR --> U
   TS --> AU
-  SP --> CP
+  SI -->|lê SecurityIdentity| QS
+  SI -->|implementa| CP
 ```
 
 **Fluxo de login:**
 
-1. `AuthController` recebe `LoginRequest`, delega a `LoginUseCase`.
+1. `AuthResource` recebe `LoginRequest`, delega a `LoginUseCase`.
 2. `LoginUseCase` busca `Usuario` por email via `UsuarioRepository` (porta).
 3. Valida senha com `PasswordEncoder.matches`.
-4. Emite JWT via `TokenService.generate(AuthenticatedUser)`.
+4. Emite JWT via `TokenService.generate(AuthenticatedUser)` (adapter `smallrye-jwt-build`).
 5. Retorna `LoginResponse` com `accessToken`, `tokenType`, `expiresIn`.
 
 **Fluxo de request autenticado:**
 
-1. `JwtAuthenticationFilter` extrai Bearer token do header.
-2. `TokenService.parse(token)` valida assinatura e expiração; retorna `AuthenticatedUser`.
-3. Popula `SecurityContext` com `UsernamePasswordAuthenticationToken` e authorities derivadas de `Papel`.
-4. Controller/use case downstream consulta `CurrentUserProvider` quando precisa do usuário logado.
+1. A extensão `quarkus-smallrye-jwt` extrai o Bearer token do header e valida assinatura (HS256) e expiração automaticamente.
+2. Quarkus Security popula o `SecurityIdentity` com principal (`sub`) e roles derivadas da claim `role`.
+3. `@RolesAllowed` nos resources JAX-RS enforce a matriz de autorização.
+4. Controller/use case downstream consulta `CurrentUserProvider` (implementado por `SecurityIdentityCurrentUserProvider` sobre o `SecurityIdentity`/`JsonWebToken`) quando precisa do usuário logado.
 
 ---
 
@@ -68,17 +68,18 @@ flowchart TB
 ```text
 com.fiap.feedbacks
 ├── api
-│   ├── web
-│   │   ├── auth
-│   │   │   ├── AuthController.java
-│   │   │   ├── dto
-│   │   │   │   ├── LoginRequest.java
-│   │   │   │   └── LoginResponse.java
-│   │   │   └── SecurityConfig.java
-│   │   └── error
-│   │       ├── ApiErrorResponse.java
-│   │       └── GlobalExceptionHandler.java
-│   └── (JwtAuthenticationFilter em infrastructure/security ou api/config)
+│   └── web
+│       ├── auth
+│       │   ├── AuthResource.java     # JAX-RS @Path("/api/v1/auth")
+│       │   └── dto
+│       │       ├── LoginRequest.java
+│       │       └── LoginResponse.java
+│       └── error
+│           ├── ApiErrorResponse.java
+│           ├── DomainExceptionMapper.java      # ExceptionMapper's → {code, message, traceId}
+│           ├── AuthExceptionMappers.java       # 401/403 (JWT ausente/inválido/expirado, forbidden)
+│           ├── ValidationExceptionMapper.java  # 400 VALIDATION_ERROR
+│           └── TraceIdFilter.java              # ContainerRequestFilter → traceId no MDC
 ├── application
 │   ├── auth
 │   │   ├── LoginUseCase.java
@@ -103,10 +104,9 @@ com.fiap.feedbacks
     │   ├── UsuarioJpaRepository.java
     │   └── JpaUsuarioRepository.java   # adapter
     └── security
-        ├── JwtTokenService.java        # adapter TokenService
-        ├── JwtProperties.java
-        ├── JwtAuthenticationFilter.java
-        └── SpringCurrentUserProvider.java
+        ├── SmallRyeJwtTokenService.java            # adapter TokenService (smallrye-jwt-build)
+        ├── JwtProperties.java                      # @ConfigMapping
+        └── SecurityIdentityCurrentUserProvider.java # adapter CurrentUserProvider (SecurityIdentity)
 ```
 
 ---
@@ -273,7 +273,7 @@ public boolean senhaCorresponde(String raw, PasswordEncoder encoder) {
 }
 ```
 
-> **Nota:** `PasswordEncoder` é infra; o use case pode orquestrar a verificação para manter o domain puro.
+> **Nota:** `PasswordEncoder` é porta/infra; o use case pode orquestrar a verificação para manter o domain puro. Implementação BCrypt: `BcryptUtil` de `quarkus-elytron-security-common` (ou biblioteca bcrypt standalone equivalente) — ver §12.
 
 ### 5.3 Persistência — `UsuarioEntity` + Flyway
 
@@ -309,7 +309,7 @@ Hash BCrypt gerado no migration (não plaintext no SQL).
 | Header | `Authorization: Bearer <token>` |
 | Claims | `sub` (UUID string), `role` (string), `iat`, `exp` |
 | TTL | Configurável; default **86400s (24h)** para demo |
-| Biblioteca | `io.jsonwebtoken:jjwt` ou Spring Security OAuth2 Resource Server com chave simétrica |
+| Biblioteca | `smallrye-jwt-build` (emissão) + `quarkus-smallrye-jwt` (validação), com `mp.jwt.verify.publickey.algorithm=HS256` explícito |
 
 **Exemplo payload decodificado:**
 
@@ -324,44 +324,53 @@ Hash BCrypt gerado no migration (não plaintext no SQL).
 
 ---
 
-## 7. Spring Security — configuração proposta
+## 7. Segurança — Quarkus Security + SmallRye JWT (configuração proposta)
 
-### 7.1 Rotas públicas vs protegidas
+### 7.1 Validação de token (extensão `quarkus-smallrye-jwt`)
 
-```java
-http
-    .csrf(csrf -> csrf.disable())
-    .sessionManagement(s -> s.sessionCreationPolicy(STATELESS))
-    .authorizeHttpRequests(auth -> auth
-        .requestMatchers("/api/v1/auth/login").permitAll()
-        .requestMatchers("/api/v1/health", "/actuator/health").permitAll()
-        .requestMatchers(HttpMethod.POST, "/api/v1/cursos/**").hasRole("ADMINISTRADOR")
-        .requestMatchers(HttpMethod.POST, "/api/v1/**/aulas/**").hasRole("ADMINISTRADOR")
-        .requestMatchers(HttpMethod.POST, "/api/v1/avaliacoes").hasRole("ESTUDANTE")
-        .requestMatchers(HttpMethod.POST, "/api/v1/**/inscricoes/**").hasRole("ESTUDANTE")
-        .requestMatchers(HttpMethod.GET, "/api/v1/avaliacoes").authenticated()
-        .anyRequest().authenticated()
-    )
-    .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+```properties
+# application.properties
+quarkus.http.auth.proactive=false             # 401 tratáveis por ExceptionMapper (ver §8.3)
+mp.jwt.verify.publickey.algorithm=HS256       # AD-8: HS256 explícito (SmallRye privilegia RSA)
+smallrye.jwt.verify.secretkey=${JWT_SECRET_JWK}  # JWK simétrico base64url derivado de jwtSecret (ver nota)
+smallrye.jwt.path.groups=role                 # claim `role` → roles do SecurityIdentity
 ```
 
-> Regras finas (Estudante vê só próprias Avaliações) ficam no **caso de uso/query**, não só no Security filter — conforme AD-8.
+> SmallRye JWT privilegia RSA por padrão — manter HS256 exige a config explícita acima (decisão AD-8; não toca AD-12 nem as chaves de secrets).
+>
+> **Nota (chave simétrica):** o SmallRye só aceita chave simétrica em formato **JWK** (`{"kty":"oct","k":"<base64url(secret)>"}`), inline via `smallrye.jwt.verify.secretkey` (valor = JWK base64url-encoded) ou arquivo via `smallrye.jwt.verify.key.location`. O valor cru `jwtSecret` do Secrets Manager permanece a **única fonte de verdade**; o wrapping em JWK é detalhe de bootstrap da implementação (Passo 4). Se a implementação optar por `smallrye.jwt.verify.key.location`, o equivalente SmallRye do algoritmo é `smallrye.jwt.verify.algorithm=HS256`.
+>
+> Sem verificação de `iss`: o contrato de claims (§6) é exatamente `sub`, `role`, `iat`, `exp` — não introduzir `mp.jwt.verify.issuer`.
 
-### 7.2 Authorities
+### 7.2 Rotas públicas vs protegidas (`@RolesAllowed` nos resources JAX-RS)
 
 ```java
-// Papel.ESTUDANTE → ROLE_ESTUDANTE
-// Papel.ADMINISTRADOR → ROLE_ADMINISTRADOR
+@Path("/api/v1/auth/login")  // @PermitAll — público
+// health público: SmallRye Health (/q/health), exposto em path compatível com o contrato
+// /api/v1/health e o ALB health check (AD-9/AD-11) — detalhe no módulo observabilidade
+
+@POST @Path("/api/v1/cursos")                  @RolesAllowed("ADMINISTRADOR")
+@POST criação de Aula (qualquer rota de aula)  @RolesAllowed("ADMINISTRADOR")
+@POST @Path("/api/v1/avaliacoes")              @RolesAllowed("ESTUDANTE")
+@POST inscrição em Curso OU Aula (todas as rotas de inscrição) @RolesAllowed("ESTUDANTE")
+@GET  @Path("/api/v1/avaliacoes")              @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
+// demais rotas de negócio: @Authenticated (ou @RolesAllowed equivalente)
 ```
 
-Mapping: `"ROLE_" + papel.name()`.
+> Toda rota de escrita nova (aulas, inscrições — inclusive em nível de Aula) **deve** nascer com o `@RolesAllowed` da matriz §3.3 do proposal; o fallback `@Authenticated` não substitui a autorização por papel.
 
-### 7.3 `JwtAuthenticationFilter`
+> Regras finas (Estudante vê só próprias Avaliações) ficam no **caso de uso/query**, não só na anotação — conforme AD-8.
 
-1. Extrair token do header `Authorization`.
-2. Se ausente → deixar Security decidir (401 no entry point).
-3. Se presente → `tokenService.parse()` → setar `SecurityContext`.
-4. Em exceção de token → limpar context e propagar para handler (401).
+### 7.3 Roles
+
+A claim `role` do JWT (`ESTUDANTE` | `ADMINISTRADOR`) é mapeada diretamente para as roles do `SecurityIdentity` via `smallrye.jwt.path.groups=role` — sem prefixo `ROLE_`; `@RolesAllowed` usa o nome exato do enum `Papel`.
+
+### 7.4 Fluxo de request autenticado
+
+1. A extensão extrai o token do header `Authorization: Bearer`.
+2. Ausente em rota protegida → 401 (mapeado para `AUTH_MISSING_TOKEN` via `ExceptionMapper`).
+3. Presente → validação automática de assinatura HS256 e `exp`; `SecurityIdentity` populado.
+4. Token inválido/expirado → 401 (`AUTH_INVALID_TOKEN` / `AUTH_TOKEN_EXPIRED`); papel insuficiente → 403 (`AUTH_FORBIDDEN`).
 
 ---
 
@@ -377,49 +386,52 @@ RuntimeException
     ├── TokenExpiredException         → 401 AUTH_TOKEN_EXPIRED
     └── ForbiddenAccessException      → 403 AUTH_FORBIDDEN
 
-Spring Security
-└── AccessDeniedException             → 403 AUTH_FORBIDDEN
+Quarkus Security (io.quarkus.security)
+├── AuthenticationFailedException     → 401 AUTH_INVALID_TOKEN / AUTH_TOKEN_EXPIRED
+├── UnauthorizedException             → 401 AUTH_MISSING_TOKEN
+└── ForbiddenException                → 403 AUTH_FORBIDDEN (negação de @RolesAllowed)
 
-Validation
-└── MethodArgumentNotValidException   → 400 VALIDATION_ERROR
+Validation (Hibernate Validator)
+└── ConstraintViolationException      → 400 VALIDATION_ERROR
 ```
 
-### 8.2 `GlobalExceptionHandler`
+### 8.2 `ExceptionMapper`s (JAX-RS)
 
 ```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
+@Provider
+public class InvalidCredentialsExceptionMapper
+        implements ExceptionMapper<InvalidCredentialsException> {
 
-    @ExceptionHandler(InvalidCredentialsException.class)
-    ResponseEntity<ApiErrorResponse> handleInvalidCredentials(...) {
-        return status(UNAUTHORIZED).body(error("AUTH_INVALID_CREDENTIALS", ...));
-    }
-
-    @ExceptionHandler({InvalidTokenException.class, TokenExpiredException.class})
-    ResponseEntity<ApiErrorResponse> handleTokenErrors(...) { ... }
-
-    @ExceptionHandler({ForbiddenAccessException.class, AccessDeniedException.class})
-    ResponseEntity<ApiErrorResponse> handleForbidden(...) {
-        return status(FORBIDDEN).body(error("AUTH_FORBIDDEN", ...));
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    ResponseEntity<ApiErrorResponse> handleValidation(...) {
-        return status(BAD_REQUEST).body(error("VALIDATION_ERROR", ...));
+    @Override
+    public Response toResponse(InvalidCredentialsException e) {
+        return Response.status(UNAUTHORIZED)
+            .entity(error("AUTH_INVALID_CREDENTIALS", ...))
+            .build();
     }
 }
+
+// Mesmo padrão para:
+// InvalidTokenException / TokenExpiredException → 401
+// ForbiddenAccessException / ForbiddenException → 403 AUTH_FORBIDDEN
+// ConstraintViolationException → 400 VALIDATION_ERROR
 ```
 
-### 8.3 `AuthenticationEntryPoint` (token ausente)
+### 8.3 Token ausente / falha de autenticação (401 da extensão)
+
+**Pré-requisito:** `quarkus.http.auth.proactive=false` (§7.1) — com autenticação proativa (default do Quarkus), a falha de auth ocorre antes do roteamento JAX-RS e os `ExceptionMapper`s abaixo nunca disparam; desativá-la é obrigatório para preservar o envelope `{code, message, traceId}` nos 401.
 
 ```java
-// JwtAuthenticationEntryPoint
-// 401 AUTH_MISSING_TOKEN quando request autenticado exigido e SecurityContext vazio
+// ExceptionMapper<UnauthorizedException> → 401 AUTH_MISSING_TOKEN
+//   (rota protegida sem Bearer token)
+// ExceptionMapper<AuthenticationFailedException> → 401 AUTH_INVALID_TOKEN | AUTH_TOKEN_EXPIRED
+//   distinção de expiração: inspecionar a causa raiz da validação
+//   (ParseException/InvalidJwtException do SmallRye com indicação de `exp` → AUTH_TOKEN_EXPIRED;
+//    qualquer outra falha de assinatura/formato → AUTH_INVALID_TOKEN) — SPEC-1.9 vs SPEC-1.10
 ```
 
 ### 8.4 `traceId`
 
-- Gerado por filter (`TraceIdFilter`) ou obtido de header `X-Trace-Id` se presente.
+- Gerado por `ContainerRequestFilter` (`TraceIdFilter`) ou obtido de header `X-Trace-Id` se presente.
 - Armazenado em MDC; incluído em todo `ApiErrorResponse` e logs.
 
 ---
@@ -429,29 +441,34 @@ public class GlobalExceptionHandler {
 ### 9.1 `JwtProperties`
 
 ```java
-@ConfigurationProperties(prefix = "app.jwt")
-public record JwtProperties(
-    String secret,
-    Duration expiration
-) {}
+@ConfigMapping(prefix = "app.jwt")
+public interface JwtProperties {
+
+    String secret();
+
+    Duration expiration();
+}
 ```
 
-### 9.2 `application.yml` (local)
+### 9.2 `application.properties` (profiles `%local` / `%aws`)
 
-```yaml
-app:
-  jwt:
-    secret: ${JWT_SECRET:dev-only-secret-min-256-bits-for-hs256-demo}
-    expiration: 24h
+```properties
+# validação SmallRye JWT (HS256 explícito — ver §7.1)
+quarkus.http.auth.proactive=false
+mp.jwt.verify.publickey.algorithm=HS256
+smallrye.jwt.path.groups=role
+
+# emissão / TTL
+app.jwt.expiration=24h
+
+# %local
+%local.app.jwt.secret=${JWT_SECRET:dev-only-secret-min-256-bits-for-hs256-demo}
+
+# %aws — injetado de Secrets Manager (chave jwtSecret) via CDK/ECS
+%aws.app.jwt.secret=${JWT_SECRET}
 ```
 
-### 9.3 Profile `aws`
-
-```yaml
-app:
-  jwt:
-    secret: ${JWT_SECRET}  # injetado de Secrets Manager via CDK/ECS
-```
+> **Invariante — fonte única de secret:** emissão (`app.jwt.secret`) e validação (chave JWK de `smallrye.jwt.verify.secretkey`, §7.1) **devem** resolver para o mesmo valor de `jwtSecret` em todos os profiles — inclusive no default de dev do `%local`. O bootstrap da implementação deriva a representação JWK a partir de `app.jwt.secret` (não são dois secrets independentes).
 
 ---
 
@@ -486,10 +503,10 @@ app:
 
 | Classe | Tipo | Cenários |
 | --- | --- | --- |
-| `LoginUseCaseTest` | Unit | credenciais OK, email inexistente, senha errada |
-| `JwtTokenServiceTest` | Unit | generate/parse round-trip, token expirado, assinatura inválida |
-| `SecurityConfigTest` / `@WebMvcTest` | Slice | login público, rota protegida 401, 403 por papel |
-| `AuthControllerTest` | Slice | validação 400, resposta 200 shape |
+| `LoginUseCaseTest` | Unit (JUnit 5 + Mockito) | credenciais OK, email inexistente, senha errada |
+| `SmallRyeJwtTokenServiceTest` | Unit | generate/parse round-trip, token expirado, assinatura inválida |
+| `AuthSecurityTest` | `@QuarkusTest` + RestAssured | login público, rota protegida 401, 403 por papel |
+| `AuthResourceTest` | `@QuarkusTest` + RestAssured | validação 400, resposta 200 shape |
 
 **Meta:** line coverage ≥ 90% no código de produção deste módulo.
 
@@ -498,18 +515,38 @@ app:
 ## 12. Dependências Maven (referência)
 
 ```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-security</artifactId>
-</dependency>
-<dependency>
-    <groupId>io.jsonwebtoken</groupId>
-    <artifactId>jjwt-api</artifactId>
-</dependency>
-<!-- jjwt-impl, jjwt-jackson runtime -->
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>io.quarkus.platform</groupId>
+            <artifactId>quarkus-bom</artifactId>
+            <version>${quarkus.platform.version}</version> <!-- fixar a release 3.33 LTS mais recente -->
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-rest-jackson</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-orm</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-jdbc-postgresql</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-flyway</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-jwt</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-jwt-build</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-validator</artifactId></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-health</artifactId></dependency>
+    <!-- BCrypt (adapter PasswordEncoder): BcryptUtil -->
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-elytron-security-common</artifactId></dependency>
+
+    <!-- testes -->
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-junit5</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>io.rest-assured</groupId><artifactId>rest-assured</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-jacoco</artifactId><scope>test</scope></dependency>
+</dependencies>
 ```
 
-Alternativa: `spring-boot-starter-oauth2-resource-server` com `JwtEncoder`/`JwtDecoder` e chave simétrica — escolha final na implementação; contrato externo (claims, HS256) permanece.
+Emissão e validação de JWT ficam nas extensões SmallRye (`quarkus-smallrye-jwt-build` / `quarkus-smallrye-jwt`) — sem biblioteca JWT adicional; contrato externo (claims, HS256) permanece.
 
 ---
 
@@ -517,7 +554,7 @@ Alternativa: `spring-boot-starter-oauth2-resource-server` com `JwtEncoder`/`JwtD
 
 | # | Questão | Proposta default |
 | --- | --- | --- |
-| 1 | Biblioteca JWT: JJWT vs Spring OAuth2 Resource Server | Spring OAuth2 (menos deps custom) |
+| 1 | Biblioteca JWT | **Resolvida** (re-baseline Quarkus 2026-07-21): `smallrye-jwt-build` (emissão) + `quarkus-smallrye-jwt` (validação) |
 | 2 | Path login: `/api/v1/auth/login` vs `/api/v1/login` | `/api/v1/auth/login` (agrupa auth) |
 | 3 | Claim adicional `email` no JWT? | Não no MVP; `sub` + lookup se necessário |
 | 4 | Múltiplos Estudantes no seed? | Um Estudante + um Admin suficientes para demo |
@@ -527,6 +564,6 @@ Alternativa: `spring-boot-starter-oauth2-resource-server` com `JwtEncoder`/`JwtD
 
 ## 14. Fora deste design (referência cruzada)
 
-- **Health check** (FR-13): módulo observabilidade; rota pública compartilhada em `SecurityConfig`.
+- **Health check** (FR-13): módulo observabilidade; SmallRye Health (`/q/health`) permanece rota pública (fora de `@RolesAllowed`).
 - **Filtro de Avaliações por Estudante** (SPEC-2.11): implementado no módulo Avaliação usando `CurrentUserProvider`.
 - **Lambdas**: não consomem JWT de usuário; credenciais IAM próprias.
