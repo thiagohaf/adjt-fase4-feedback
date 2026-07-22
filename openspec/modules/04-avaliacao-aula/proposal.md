@@ -93,12 +93,12 @@ Sem domínio real de Avaliação:
 
 ## 6. Critério de pronto do módulo
 
-- [ ] Estudante inscrito cria Avaliação válida → 201 com Urgência e ids estáveis.
-- [ ] `nota` fora 0–10 ou `descricao` inválida → 400 `VALIDATION_ERROR`.
-- [ ] Sem inscrição na Aula → 403 `INSCRICAO_AULA_OBRIGATORIA` (FR-6).
-- [ ] Duplicata Estudante+Aula → 409 `AVALIACAO_DUPLICADA`.
-- [ ] Fronteiras 4/5/7/8 classificam ALTA/MEDIA/BAIXA corretamente.
-- [ ] Admin lista todas com nota/Urgência/data/vínculos; Estudante só as próprias.
-- [ ] ALTA publica evento AD-5; MÉDIA/BAIXA não; falha de publish não apaga Avaliação.
-- [ ] Auth, catálogo e inscrição inalterados nos contratos públicos.
-- [ ] Fluxo UJ-1 reproduzível na collection Postman até Avaliação real.
+- [x] Estudante inscrito cria Avaliação válida → 201 com Urgência e ids estáveis.
+- [x] `nota` fora 0–10 ou `descricao` inválida → 400 `VALIDATION_ERROR`.
+- [x] Sem inscrição na Aula → 403 `INSCRICAO_AULA_OBRIGATORIA` (FR-6).
+- [x] Duplicata Estudante+Aula → 409 `AVALIACAO_DUPLICADA`.
+- [x] Fronteiras 4/5/7/8 classificam ALTA/MEDIA/BAIXA corretamente.
+- [x] Admin lista todas com nota/Urgência/data/vínculos; Estudante só as próprias.
+- [x] ALTA publica evento AD-5; MÉDIA/BAIXA não; falha de publish não apaga Avaliação.
+- [x] Auth, catálogo e inscrição inalterados nos contratos públicos.
+- [x] Fluxo UJ-1 reproduzível na collection Postman até Avaliação real.

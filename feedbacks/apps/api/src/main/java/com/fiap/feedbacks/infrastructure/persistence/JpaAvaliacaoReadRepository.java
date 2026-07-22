@@ -4,6 +4,7 @@ import com.fiap.feedbacks.application.avaliacao.AvaliacaoReadRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,10 +35,15 @@ public class JpaAvaliacaoReadRepository implements AvaliacaoReadRepository {
     }
 
     private Map<String, Object> toMap(AvaliacaoEntity entity) {
-        return Map.of(
-                "id", entity.getId(),
-                "estudanteId", entity.getEstudanteId(),
-                "descricao", entity.getDescricao()
-        );
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", entity.getId());
+        map.put("estudanteId", entity.getEstudanteId());
+        map.put("aulaId", entity.getAulaId());
+        map.put("cursoId", entity.getCursoId());
+        map.put("descricao", entity.getDescricao());
+        map.put("nota", (int) entity.getNota());
+        map.put("urgencia", entity.getUrgencia());
+        map.put("ocorridoEm", entity.getOcorridoEm());
+        return map;
     }
 }

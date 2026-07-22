@@ -1,10 +1,10 @@
 package com.fiap.feedbacks.api.web.avaliacao;
 
-import com.fiap.feedbacks.api.web.avaliacao.dto.CriarAvaliacaoStubRequest;
-import com.fiap.feedbacks.application.auth.port.CurrentUserProvider;
+import com.fiap.feedbacks.api.web.avaliacao.dto.AvaliacaoResponse;
+import com.fiap.feedbacks.api.web.avaliacao.dto.CriarAvaliacaoRequest;
+import com.fiap.feedbacks.application.avaliacao.CriarAvaliacaoUseCase;
 import com.fiap.feedbacks.application.avaliacao.ListarAvaliacoesUseCase;
-import com.fiap.feedbacks.application.enrollment.VerificarInscricaoAulaUseCase;
-import com.fiap.feedbacks.domain.exception.InscricaoAulaObrigatoriaException;
+import com.fiap.feedbacks.domain.avaliacao.Avaliacao;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -18,11 +18,10 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
- * GET: read model mínimo (SPEC-2.10/2.11).
- * POST: stub provisório com gate FR-6 (inscrição na Aula obrigatória).
+ * GET: listagem enriquecida (FR-8 / SPEC-2.10–2.11).
+ * POST: criação real de Avaliação (FR-7/FR-9) com gate FR-6.
  */
 @Path("/api/v1/avaliacoes")
 @Produces(MediaType.APPLICATION_JSON)
@@ -32,9 +31,7 @@ public class AvaliacaoResource {
     @Inject
     ListarAvaliacoesUseCase listarAvaliacoesUseCase;
     @Inject
-    VerificarInscricaoAulaUseCase verificarInscricaoAulaUseCase;
-    @Inject
-    CurrentUserProvider currentUserProvider;
+    CriarAvaliacaoUseCase criarAvaliacaoUseCase;
 
     @GET
     @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
@@ -44,21 +41,14 @@ public class AvaliacaoResource {
 
     @POST
     @RolesAllowed("ESTUDANTE")
-    public Response criar(@Valid CriarAvaliacaoStubRequest request) {
-        UUID estudanteId = currentUserProvider.getCurrentUserId();
-        if (!verificarInscricaoAulaUseCase.execute(estudanteId, request.aulaId())) {
-            throw new InscricaoAulaObrigatoriaException(request.aulaId());
-        }
-
-        String descricao = request.descricao() == null || request.descricao().isBlank()
-                ? "Feedback demo"
-                : request.descricao();
+    public Response criar(@Valid CriarAvaliacaoRequest request) {
+        Avaliacao avaliacao = criarAvaliacaoUseCase.execute(
+                request.aulaId(),
+                request.descricao(),
+                request.nota()
+        );
         return Response.status(Response.Status.CREATED)
-                .entity(Map.of(
-                        "id", UUID.randomUUID(),
-                        "aulaId", request.aulaId(),
-                        "descricao", descricao
-                ))
+                .entity(AvaliacaoResponse.from(avaliacao))
                 .build();
     }
 }

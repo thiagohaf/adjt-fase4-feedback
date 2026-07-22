@@ -25,7 +25,7 @@ class AvaliacaoGateInscricaoTest {
         given()
                 .header("Authorization", "Bearer " + estudanteToken)
                 .contentType(ContentType.JSON)
-                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\"}".formatted(aulaId))
+                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\",\"nota\":5}".formatted(aulaId))
                 .when()
                 .post("/api/v1/avaliacoes")
                 .then()
@@ -58,14 +58,18 @@ class AvaliacaoGateInscricaoTest {
         given()
                 .header("Authorization", "Bearer " + estudanteToken)
                 .contentType(ContentType.JSON)
-                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\"}".formatted(aulaId))
+                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\",\"nota\":4}".formatted(aulaId))
                 .when()
                 .post("/api/v1/avaliacoes")
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("aulaId", equalTo(aulaId))
-                .body("descricao", equalTo("Feedback"));
+                .body("cursoId", equalTo(cursoId))
+                .body("descricao", equalTo("Feedback"))
+                .body("nota", equalTo(4))
+                .body("urgencia", equalTo("ALTA"))
+                .body("ocorridoEm", notNullValue());
     }
 
     private String createCurso(String token, String nome) {
