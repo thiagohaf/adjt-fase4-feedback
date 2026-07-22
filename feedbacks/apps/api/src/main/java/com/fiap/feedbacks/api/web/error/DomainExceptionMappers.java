@@ -3,6 +3,9 @@ package com.fiap.feedbacks.api.web.error;
 import com.fiap.feedbacks.domain.exception.AulaNotFoundException;
 import com.fiap.feedbacks.domain.exception.CursoNotFoundException;
 import com.fiap.feedbacks.domain.exception.ForbiddenAccessException;
+import com.fiap.feedbacks.domain.exception.InscricaoAulaObrigatoriaException;
+import com.fiap.feedbacks.domain.exception.InscricaoCursoObrigatoriaException;
+import com.fiap.feedbacks.domain.exception.InscricaoDuplicadaException;
 import com.fiap.feedbacks.domain.exception.InvalidCredentialsException;
 import com.fiap.feedbacks.domain.exception.InvalidTokenException;
 import com.fiap.feedbacks.domain.exception.TokenExpiredException;
@@ -81,6 +84,42 @@ public final class DomainExceptionMappers {
         public Response toResponse(AulaNotFoundException exception) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(ApiErrorFactory.of("AULA_NOT_FOUND", exception.getMessage()))
+                    .build();
+        }
+    }
+
+    @Provider
+    public static class InscricaoDuplicadaExceptionMapper
+            implements ExceptionMapper<InscricaoDuplicadaException> {
+
+        @Override
+        public Response toResponse(InscricaoDuplicadaException exception) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(ApiErrorFactory.of("INSCRICAO_DUPLICADA", exception.getMessage()))
+                    .build();
+        }
+    }
+
+    @Provider
+    public static class InscricaoCursoObrigatoriaExceptionMapper
+            implements ExceptionMapper<InscricaoCursoObrigatoriaException> {
+
+        @Override
+        public Response toResponse(InscricaoCursoObrigatoriaException exception) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(ApiErrorFactory.of("INSCRICAO_CURSO_OBRIGATORIA", exception.getMessage()))
+                    .build();
+        }
+    }
+
+    @Provider
+    public static class InscricaoAulaObrigatoriaExceptionMapper
+            implements ExceptionMapper<InscricaoAulaObrigatoriaException> {
+
+        @Override
+        public Response toResponse(InscricaoAulaObrigatoriaException exception) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(ApiErrorFactory.of("INSCRICAO_AULA_OBRIGATORIA", exception.getMessage()))
                     .build();
         }
     }

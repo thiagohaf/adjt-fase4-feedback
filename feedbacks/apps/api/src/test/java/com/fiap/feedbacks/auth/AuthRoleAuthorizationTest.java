@@ -161,12 +161,29 @@ class AuthRoleAuthorizationTest {
     @Test
     @DisplayName("SPEC-2.7 — Estudante cria Avaliação")
     void spec2_7_estudanteCriaAvaliacao() {
-        String token = login("estudante@demo.fiap", "senha123");
+        String adminToken = login("admin@demo.fiap", "admin123");
+        String estudanteToken = login("estudante@demo.fiap", "senha123");
+        String cursoId = createCurso(adminToken, "Curso Auth Avaliacao " + UUID.randomUUID());
+        String aulaId = createAula(adminToken, cursoId, "Aula Auth Avaliacao");
 
         given()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + estudanteToken)
+                .when()
+                .post("/api/v1/cursos/" + cursoId + "/inscricoes")
+                .then()
+                .statusCode(201);
+
+        given()
+                .header("Authorization", "Bearer " + estudanteToken)
+                .when()
+                .post("/api/v1/cursos/" + cursoId + "/aulas/" + aulaId + "/inscricoes")
+                .then()
+                .statusCode(201);
+
+        given()
+                .header("Authorization", "Bearer " + estudanteToken)
                 .contentType(ContentType.JSON)
-                .body("{\"descricao\":\"Feedback\"}")
+                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\"}".formatted(aulaId))
                 .when()
                 .post("/api/v1/avaliacoes")
                 .then()
@@ -189,12 +206,14 @@ class AuthRoleAuthorizationTest {
     @Test
     @DisplayName("SPEC-2.9 — Estudante realiza inscrição")
     void spec2_9_estudanteInscreve() {
-        String token = login("estudante@demo.fiap", "senha123");
+        String adminToken = login("admin@demo.fiap", "admin123");
+        String estudanteToken = login("estudante@demo.fiap", "senha123");
+        String cursoId = createCurso(adminToken, "Curso Auth Inscricao " + UUID.randomUUID());
 
         given()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + estudanteToken)
                 .when()
-                .post("/api/v1/cursos/" + UUID.randomUUID() + "/inscricoes")
+                .post("/api/v1/cursos/" + cursoId + "/inscricoes")
                 .then()
                 .statusCode(201);
     }
@@ -226,6 +245,30 @@ class AuthRoleAuthorizationTest {
                 .statusCode(200)
                 .body("$", hasSize(1))
                 .body("[0].estudanteId", equalTo(ESTUDANTE_ID.toString()));
+    }
+
+    private String createCurso(String token, String nome) {
+        return given()
+                .header("Authorization", "Bearer " + token)
+                .contentType(ContentType.JSON)
+                .body("{\"nome\":\"%s\"}".formatted(nome))
+                .when()
+                .post("/api/v1/cursos")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+    }
+
+    private String createAula(String token, String cursoId, String nome) {
+        return given()
+                .header("Authorization", "Bearer " + token)
+                .contentType(ContentType.JSON)
+                .body("{\"nome\":\"%s\"}".formatted(nome))
+                .when()
+                .post("/api/v1/cursos/" + cursoId + "/aulas")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
     }
 
     private String login(String email, String password) {
