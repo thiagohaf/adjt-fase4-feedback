@@ -1,6 +1,7 @@
 package com.fiap.feedbacks.api.web.error;
 
 import com.fiap.feedbacks.domain.exception.AulaNotFoundException;
+import com.fiap.feedbacks.domain.exception.AvaliacaoDuplicadaException;
 import com.fiap.feedbacks.domain.exception.CursoNotFoundException;
 import com.fiap.feedbacks.domain.exception.ForbiddenAccessException;
 import com.fiap.feedbacks.domain.exception.InscricaoAulaObrigatoriaException;
@@ -96,6 +97,18 @@ public final class DomainExceptionMappers {
         public Response toResponse(InscricaoDuplicadaException exception) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(ApiErrorFactory.of("INSCRICAO_DUPLICADA", exception.getMessage()))
+                    .build();
+        }
+    }
+
+    @Provider
+    public static class AvaliacaoDuplicadaExceptionMapper
+            implements ExceptionMapper<AvaliacaoDuplicadaException> {
+
+        @Override
+        public Response toResponse(AvaliacaoDuplicadaException exception) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(ApiErrorFactory.of("AVALIACAO_DUPLICADA", exception.getMessage()))
                     .build();
         }
     }

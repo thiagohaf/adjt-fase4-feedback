@@ -183,11 +183,13 @@ class AuthRoleAuthorizationTest {
         given()
                 .header("Authorization", "Bearer " + estudanteToken)
                 .contentType(ContentType.JSON)
-                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\"}".formatted(aulaId))
+                .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\",\"nota\":7}".formatted(aulaId))
                 .when()
                 .post("/api/v1/avaliacoes")
                 .then()
-                .statusCode(201);
+                .statusCode(201)
+                .body("urgencia", equalTo("MEDIA"))
+                .body("nota", equalTo(7));
     }
 
     @Test
@@ -221,30 +223,80 @@ class AuthRoleAuthorizationTest {
     @Test
     @DisplayName("SPEC-2.10 — Admin vê todas Avaliações")
     void spec2_10_adminVeTodas() {
-        String token = login("admin@demo.fiap", "admin123");
+        String adminToken = login("admin@demo.fiap", "admin123");
+        String estudanteToken = login("estudante@demo.fiap", "senha123");
+        String estudante2Token = login("estudante2@demo.fiap", "senha123");
+
+        String cursoA = createCurso(adminToken, "Curso Auth List A " + UUID.randomUUID());
+        String aulaA = createAula(adminToken, cursoA, "Aula A");
+        enroll(estudanteToken, cursoA, aulaA);
+        createAvaliacao(estudanteToken, aulaA, "De A", 5);
+
+        String cursoB = createCurso(adminToken, "Curso Auth List B " + UUID.randomUUID());
+        String aulaB = createAula(adminToken, cursoB, "Aula B");
+        enroll(estudante2Token, cursoB, aulaB);
+        createAvaliacao(estudante2Token, aulaB, "De B", 8);
 
         given()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + adminToken)
                 .when()
                 .get("/api/v1/avaliacoes")
                 .then()
                 .statusCode(200)
-                .body("$", hasSize(2));
+                .body("findAll { it.aulaId == '%s' || it.aulaId == '%s' }".formatted(aulaA, aulaB), hasSize(2));
     }
 
     @Test
     @DisplayName("SPEC-2.11 — Estudante vê só as próprias Avaliações")
     void spec2_11_estudanteVeProprias() {
-        String token = login("estudante@demo.fiap", "senha123");
+        String adminToken = login("admin@demo.fiap", "admin123");
+        String estudanteToken = login("estudante@demo.fiap", "senha123");
+        String estudante2Token = login("estudante2@demo.fiap", "senha123");
+
+        String cursoA = createCurso(adminToken, "Curso Auth Own A " + UUID.randomUUID());
+        String aulaA = createAula(adminToken, cursoA, "Aula Own A");
+        enroll(estudanteToken, cursoA, aulaA);
+        createAvaliacao(estudanteToken, aulaA, "Própria", 6);
+
+        String cursoB = createCurso(adminToken, "Curso Auth Own B " + UUID.randomUUID());
+        String aulaB = createAula(adminToken, cursoB, "Aula Own B");
+        enroll(estudante2Token, cursoB, aulaB);
+        createAvaliacao(estudante2Token, aulaB, "Alheia", 4);
 
         given()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + estudanteToken)
                 .when()
                 .get("/api/v1/avaliacoes")
                 .then()
                 .statusCode(200)
-                .body("$", hasSize(1))
-                .body("[0].estudanteId", equalTo(ESTUDANTE_ID.toString()));
+                .body("estudanteId", org.hamcrest.Matchers.everyItem(equalTo(ESTUDANTE_ID.toString())))
+                .body("find { it.aulaId == '%s' }.descricao".formatted(aulaA), equalTo("Própria"));
+    }
+
+    private void enroll(String estudanteToken, String cursoId, String aulaId) {
+        given()
+                .header("Authorization", "Bearer " + estudanteToken)
+                .when()
+                .post("/api/v1/cursos/" + cursoId + "/inscricoes")
+                .then()
+                .statusCode(201);
+        given()
+                .header("Authorization", "Bearer " + estudanteToken)
+                .when()
+                .post("/api/v1/cursos/" + cursoId + "/aulas/" + aulaId + "/inscricoes")
+                .then()
+                .statusCode(201);
+    }
+
+    private void createAvaliacao(String estudanteToken, String aulaId, String descricao, int nota) {
+        given()
+                .header("Authorization", "Bearer " + estudanteToken)
+                .contentType(ContentType.JSON)
+                .body("{\"aulaId\":\"%s\",\"descricao\":\"%s\",\"nota\":%d}".formatted(aulaId, descricao, nota))
+                .when()
+                .post("/api/v1/avaliacoes")
+                .then()
+                .statusCode(201);
     }
 
     private String createCurso(String token, String nome) {

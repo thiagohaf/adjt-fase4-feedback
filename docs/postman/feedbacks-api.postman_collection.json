@@ -395,12 +395,32 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "avaliacoes"]
             },
-            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Estudante vê só as próprias."
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Estudante vê só as próprias. Itens incluem nota, urgencia, ocorridoEm, aulaId, cursoId (FR-8)."
           },
           "response": []
         },
         {
           "name": "Criar avaliação (Estudante)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Urgência ALTA para nota 3', function () { pm.expect(body.urgencia).to.eql('ALTA'); });",
+                  "pm.test('Campos de domínio', function () {",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.expect(body).to.have.property('nota', 3);",
+                  "  pm.expect(body).to.have.property('ocorridoEm');",
+                  "  pm.expect(body).to.have.property('cursoId');",
+                  "});",
+                  "if (body.id) { pm.collectionVariables.set('avaliacaoId', body.id); }"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -411,14 +431,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"aulaId\": \"{{aulaId}}\",\n  \"descricao\": \"Feedback via Postman\"\n}"
+              "raw": "{\n  \"aulaId\": \"{{aulaId}}\",\n  \"descricao\": \"Aula rápida demais — nota de fronteira ALTA\",\n  \"nota\": 3\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/avaliacoes",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "avaliacoes"]
             },
-            "description": "Requer ESTUDANTE inscrito na Aula (FR-6). Sem inscrição → 403 INSCRICAO_AULA_OBRIGATORIA. Stub provisório (FR-7 completo no módulo Avaliação)."
+            "description": "Requer ESTUDANTE inscrito na Aula (FR-6). Body: aulaId + descricao + nota (0–10). 201 com urgencia (ALTA≤4 / MEDIA 5–7 / BAIXA≥8), ocorridoEm, cursoId. Sem inscrição → 403 INSCRICAO_AULA_OBRIGATORIA. Duplicata → 409 AVALIACAO_DUPLICADA. Nota inválida → 400 VALIDATION_ERROR."
           },
           "response": []
         }

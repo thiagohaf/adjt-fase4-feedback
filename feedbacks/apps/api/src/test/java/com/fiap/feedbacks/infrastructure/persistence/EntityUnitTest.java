@@ -26,9 +26,19 @@ class EntityUnitTest {
     void avaliacaoEntity_getters() {
         UUID id = UUID.randomUUID();
         UUID estudanteId = UUID.randomUUID();
-        var entity = new AvaliacaoEntity(id, estudanteId, "desc");
+        UUID aulaId = UUID.randomUUID();
+        UUID cursoId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+        var entity = new AvaliacaoEntity(
+                id, estudanteId, aulaId, cursoId, "desc", (short) 4, "ALTA", now
+        );
         assertThat(entity.getId()).isEqualTo(id);
         assertThat(entity.getEstudanteId()).isEqualTo(estudanteId);
+        assertThat(entity.getAulaId()).isEqualTo(aulaId);
+        assertThat(entity.getCursoId()).isEqualTo(cursoId);
         assertThat(entity.getDescricao()).isEqualTo("desc");
+        assertThat(entity.getNota()).isEqualTo((short) 4);
+        assertThat(entity.getUrgencia()).isEqualTo("ALTA");
+        assertThat(entity.getOcorridoEm()).isEqualTo(now);
     }
 }
