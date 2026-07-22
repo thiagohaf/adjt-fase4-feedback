@@ -1,0 +1,60 @@
+# FR-15 parcial / AD-14 — build + testes + gate JaCoCo ≥ 90% (quarkus-jacoco).
+# Deploy (ECR / CDK) fica fora deste workflow.
+name: ci(api)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - 'feedbacks/apps/api/**'
+      - '.github/workflows/ci-api.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'feedbacks/apps/api/**'
+      - '.github/workflows/ci-api.yml'
+
+concurrency:
+  group: ci-api-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: mvn verify (JaCoCo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: feedbacks/apps/api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: feedbacks/apps/api/pom.xml
+
+      - name: Maven verify (unit + @QuarkusTest + JaCoCo gate)
+        run: mvn -B verify
+        env:
+          # Dev Services PostgreSQL no profile %test (Testcontainers / Docker do runner)
+          MAVEN_OPTS: -Xmx1g
+
+      - name: Upload JaCoCo HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: feedbacks/apps/api/target/jacoco-report/
+          if-no-files-found: warn
+          retention-days: 14
