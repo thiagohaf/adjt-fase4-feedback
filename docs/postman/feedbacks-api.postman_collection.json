@@ -1,0 +1,439 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-feedbacks-api-01",
+    "name": "Feedbacks API — Módulo 01 (Auth)",
+    "description": "Collection da API Quarkus (feedbacks-api).\n\n**Como usar**\n1. Suba a API em `http://localhost:8080` (profile `local`).\n2. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o script salva `accessToken` automaticamente.\n3. As rotas protegidas usam `Authorization: Bearer {{accessToken}}`.\n\n**Usuários seed (Flyway V2)**\n- Estudante: `estudante@demo.fiap` / `senha123`\n- Admin: `admin@demo.fiap` / `admin123`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "cursoId",
+      "value": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "key": "aulaId",
+      "value": "22222222-2222-2222-2222-222222222222"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/v1/health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Health público do contrato (AD-9). Sem token."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /q/health (SmallRye)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/q/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["q", "health"]
+            },
+            "description": "Health nativo SmallRye (liveness/readiness agregados)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (Estudante)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "  console.log('accessToken salvo (ESTUDANTE)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"estudante@demo.fiap\",\n  \"password\": \"senha123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login público. Em sucesso, grava `accessToken` na collection."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "  console.log('accessToken salvo (ADMINISTRADOR)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@demo.fiap\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login como ADMINISTRADOR. Grava `accessToken` na collection."
+          },
+          "response": []
+        },
+        {
+          "name": "Login — credenciais inválidas (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"estudante@demo.fiap\",\n  \"password\": \"senha-errada\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Esperado: 401 com `code` = `AUTH_INVALID_CREDENTIALS` e `traceId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Login — validação (400)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nao-e-email\",\n  \"password\": \"123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Esperado: 400 com `code` = `VALIDATION_ERROR`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cursos",
+      "item": [
+        {
+          "name": "Listar cursos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos"]
+            },
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Stub provisório."
+          },
+          "response": []
+        },
+        {
+          "name": "Criar curso (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Curso Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos"]
+            },
+            "description": "Requer ADMINISTRADOR. Com token de Estudante → 403 AUTH_FORBIDDEN."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar aulas do curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas"]
+            },
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR."
+          },
+          "response": []
+        },
+        {
+          "name": "Criar aula no curso (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Aula Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas"]
+            },
+            "description": "Requer ADMINISTRADOR."
+          },
+          "response": []
+        },
+        {
+          "name": "Inscrever em curso (Estudante)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/inscricoes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos", "{{cursoId}}", "inscricoes"]
+            },
+            "description": "Requer ESTUDANTE. Com token Admin → 403."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Aulas",
+      "item": [
+        {
+          "name": "Consultar aula por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/aulas/{{aulaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "aulas", "{{aulaId}}"]
+            },
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Stub provisório."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Avaliações",
+      "item": [
+        {
+          "name": "Listar avaliações",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/avaliacoes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "avaliacoes"]
+            },
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Estudante vê só as próprias."
+          },
+          "response": []
+        },
+        {
+          "name": "Criar avaliação (Estudante)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Feedback via Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/avaliacoes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "avaliacoes"]
+            },
+            "description": "Requer ESTUDANTE. Stub provisório (POST)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Erros de autenticação",
+      "item": [
+        {
+          "name": "Rota protegida sem token (401 AUTH_MISSING_TOKEN)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos"]
+            },
+            "description": "Esperado: 401 `AUTH_MISSING_TOKEN` com `traceId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Token inválido (401 AUTH_INVALID_TOKEN)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "token-invalido",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos"]
+            },
+            "description": "Esperado: 401 `AUTH_INVALID_TOKEN`."
+          },
+          "response": []
+        },
+        {
+          "name": "Forbidden — Estudante cria curso (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Não deveria criar\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos"]
+            },
+            "description": "Faça login como Estudante antes. Esperado: 403 `AUTH_FORBIDDEN`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

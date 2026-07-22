@@ -1,0 +1,11 @@
+INSERT INTO usuario (id, email, senha_hash, papel, criado_em) VALUES
+    ('a1111111-1111-4111-8111-111111111111', 'estudante@demo.fiap',
+     '$2a$10$dsCmCCuSn2wOOZzWcUImEelMyFRWLN5Iibh9aSFP8v6BV8YCsixhG', 'ESTUDANTE', CURRENT_TIMESTAMP),
+    ('b2222222-2222-4222-8222-222222222222', 'admin@demo.fiap',
+     '$2a$10$Rj79BJgD9QvwVTNTTbkzkuwlLGWpshyn8ROWC7.ZDk9x1luk0jLba', 'ADMINISTRADOR', CURRENT_TIMESTAMP),
+    ('c3333333-3333-4333-8333-333333333333', 'estudante2@demo.fiap',
+     '$2a$10$dsCmCCuSn2wOOZzWcUImEelMyFRWLN5Iibh9aSFP8v6BV8YCsixhG', 'ESTUDANTE', CURRENT_TIMESTAMP);
+
+INSERT INTO avaliacao (id, estudante_id, descricao) VALUES
+    ('d4444444-4444-4444-8444-444444444444', 'a1111111-1111-4111-8111-111111111111', 'Feedback do Estudante A'),
+    ('e5555555-5555-4555-8555-555555555555', 'c3333333-3333-4333-8333-333333333333', 'Feedback do Estudante B');

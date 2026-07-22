@@ -3,9 +3,9 @@
 | Campo | Valor |
 | --- | --- |
 | **Módulo** | `01-autenticacao-e-papeis` |
-| **Stack** | Java 17, Quarkus 3.33 LTS, Quarkus Security + SmallRye JWT, JWT HS256 (`mp.jwt.verify.publickey.algorithm=HS256`; secret em Secrets Manager, chave `jwtSecret`) |
+| **Stack** | Java 17, Quarkus 3.33 LTS, Quarkus Security + SmallRye JWT, JWT HS256 (`smallrye.jwt.verify.algorithm=HS256`; secret em Secrets Manager, chave `jwtSecret`) |
 | **Paradigma** | Hexagonal (ports & adapters) dentro do modular monolith |
-| **Status** | Rascunho para revisão |
+| **Status** | Alinhado à implementação Quarkus (change `autenticacao-e-papeis-quarkus`) |
 
 ---
 
@@ -15,11 +15,12 @@ O módulo de autenticação atravessa as camadas do monólito conforme AD-2:
 
 ```mermaid
 flowchart TB
-  REQ[Request HTTP] --> QS[Quarkus Security / SmallRye JWT]
+  REQ[Request HTTP] --> VX[TraceIdFilterRegistrar Vert.x Filters]
+  VX --> QS[Quarkus Security / SmallRye JWT]
   QS --> TF
   subgraph api [api/web]
-    TF[TraceIdFilter ContainerRequestFilter] --> AC[AuthResource JAX-RS]
-    AC -. "erros → {code, message, traceId}" .-> EH[ExceptionMappers]
+    TF[TraceIdFilter JAX-RS PreMatching] --> AC[AuthResource JAX-RS]
+    AC -. "erros → ApiErrorFactory → {code, message, traceId}" .-> EH[ExceptionMappers]
   end
   subgraph application [application]
     LU[LoginUseCase]
@@ -35,6 +36,7 @@ flowchart TB
     TS[SmallRyeJwtTokenService]
     PC[PasswordEncoder BCrypt]
     SI[SecurityIdentityCurrentUserProvider]
+    JK[JwtJwkConfigSourceFactory]
   end
   AC --> LU
   LU --> UR
@@ -42,6 +44,7 @@ flowchart TB
   LU --> PC
   UR --> U
   TS --> AU
+  JK -.->|deriva smallrye.jwt.verify.secretkey| QS
   SI -->|lê SecurityIdentity| QS
   SI -->|implementa| CP
 ```
@@ -76,10 +79,12 @@ com.fiap.feedbacks
 │       │       └── LoginResponse.java
 │       └── error
 │           ├── ApiErrorResponse.java
-│           ├── DomainExceptionMapper.java      # ExceptionMapper's → {code, message, traceId}
+│           ├── ApiErrorFactory.java            # monta envelope; traceId de MDC ou contexto Vert.x
+│           ├── DomainExceptionMappers.java     # ExceptionMapper's → {code, message, traceId}
 │           ├── AuthExceptionMappers.java       # 401/403 (JWT ausente/inválido/expirado, forbidden)
 │           ├── ValidationExceptionMapper.java  # 400 VALIDATION_ERROR
-│           └── TraceIdFilter.java              # ContainerRequestFilter → traceId no MDC
+│           ├── TraceIdFilterRegistrar.java     # filtro Vert.x (Filters) — traceId cedo (auth precoce)
+│           └── TraceIdFilter.java              # @PreMatching ContainerRequestFilter + response
 ├── application
 │   ├── auth
 │   │   ├── LoginUseCase.java
@@ -106,6 +111,7 @@ com.fiap.feedbacks
     └── security
         ├── SmallRyeJwtTokenService.java            # adapter TokenService (smallrye-jwt-build)
         ├── JwtProperties.java                      # @ConfigMapping
+        ├── JwtJwkConfigSourceFactory.java          # deriva smallrye.jwt.verify.secretkey de app.jwt.secret
         └── SecurityIdentityCurrentUserProvider.java # adapter CurrentUserProvider (SecurityIdentity)
 ```
 
@@ -211,7 +217,7 @@ public record LoginResponse(
 | --- | --- | --- |
 | `code` | `String` | Código estável (ex.: `AUTH_INVALID_CREDENTIALS`) |
 | `message` | `String` | Mensagem legível |
-| `traceId` | `String` | Correlaciona com logs (MDC) |
+| `traceId` | `String` | Correlaciona com logs (MDC / contexto Vert.x via `ApiErrorFactory`) |
 
 ```java
 public record ApiErrorResponse(
@@ -309,7 +315,7 @@ Hash BCrypt gerado no migration (não plaintext no SQL).
 | Header | `Authorization: Bearer <token>` |
 | Claims | `sub` (UUID string), `role` (string), `iat`, `exp` |
 | TTL | Configurável; default **86400s (24h)** para demo |
-| Biblioteca | `smallrye-jwt-build` (emissão) + `quarkus-smallrye-jwt` (validação), com `mp.jwt.verify.publickey.algorithm=HS256` explícito |
+| Biblioteca | `smallrye-jwt-build` (emissão) + `quarkus-smallrye-jwt` (validação), com `smallrye.jwt.verify.algorithm=HS256` explícito |
 
 **Exemplo payload decodificado:**
 
@@ -331,16 +337,22 @@ Hash BCrypt gerado no migration (não plaintext no SQL).
 ```properties
 # application.properties
 quarkus.http.auth.proactive=false             # 401 tratáveis por ExceptionMapper (ver §8.3)
-mp.jwt.verify.publickey.algorithm=HS256       # AD-8: HS256 explícito (SmallRye privilegia RSA)
-smallrye.jwt.verify.secretkey=${JWT_SECRET_JWK}  # JWK simétrico base64url derivado de jwtSecret (ver nota)
+smallrye.jwt.verify.algorithm=HS256           # AD-8: HS256 explícito (ver nota D-HS256)
+mp.jwt.verify.publickey=NONE                  # anula default RSA de demo do Quarkus (D-DEFAULTS)
+mp.jwt.verify.issuer=NONE                     # anula issuer demo https://quarkus.io/issuer (D-DEFAULTS)
+# smallrye.jwt.verify.secretkey derivado de app.jwt.secret via JwtJwkConfigSourceFactory
 smallrye.jwt.path.groups=role                 # claim `role` → roles do SecurityIdentity
 ```
 
 > SmallRye JWT privilegia RSA por padrão — manter HS256 exige a config explícita acima (decisão AD-8; não toca AD-12 nem as chaves de secrets).
 >
-> **Nota (chave simétrica):** o SmallRye só aceita chave simétrica em formato **JWK** (`{"kty":"oct","k":"<base64url(secret)>"}`), inline via `smallrye.jwt.verify.secretkey` (valor = JWK base64url-encoded) ou arquivo via `smallrye.jwt.verify.key.location`. O valor cru `jwtSecret` do Secrets Manager permanece a **única fonte de verdade**; o wrapping em JWK é detalhe de bootstrap da implementação (Passo 4). Se a implementação optar por `smallrye.jwt.verify.key.location`, o equivalente SmallRye do algoritmo é `smallrye.jwt.verify.algorithm=HS256`.
+> **D-HS256 — não usar `mp.jwt.verify.publickey.algorithm=HS256`:** com essa chave, o SmallRye JWT 4.x trata a config como “public key presente” e **ignora** `smallrye.jwt.verify.secretkey` (warning `SRJWT03007`), quebrando tokens HS256. O algoritmo efetivo é `smallrye.jwt.verify.algorithm=HS256`.
 >
-> Sem verificação de `iss`: o contrato de claims (§6) é exatamente `sub`, `role`, `iat`, `exp` — não introduzir `mp.jwt.verify.issuer`.
+> **D-DEFAULTS:** `mp.jwt.verify.publickey=NONE` e `mp.jwt.verify.issuer=NONE` são obrigatórios para anular os defaults de desenvolvimento injetados por `quarkus-smallrye-jwt` (RSA de demo + issuer `https://quarkus.io/issuer`), que conflitam com HS256 simétrico e com o contrato sem `iss`.
+>
+> **Nota (chave simétrica):** o SmallRye só aceita chave simétrica em formato **JWK** (`{"kty":"oct","k":"<base64url(secret)>"}`), inline via `smallrye.jwt.verify.secretkey`. O valor cru `jwtSecret` do Secrets Manager permanece a **única fonte de verdade**; o wrapping em JWK é feito no bootstrap por `JwtJwkConfigSourceFactory` a partir de `app.jwt.secret`.
+>
+> Sem verificação de `iss`: o contrato de claims (§6) é exatamente `sub`, `role`, `iat`, `exp`.
 
 ### 7.2 Rotas públicas vs protegidas (`@RolesAllowed` nos resources JAX-RS)
 
@@ -429,10 +441,14 @@ public class InvalidCredentialsExceptionMapper
 //    qualquer outra falha de assinatura/formato → AUTH_INVALID_TOKEN) — SPEC-1.9 vs SPEC-1.10
 ```
 
-### 8.4 `traceId`
+### 8.4 `traceId` (duas camadas — D-TRACE)
 
-- Gerado por `ContainerRequestFilter` (`TraceIdFilter`) ou obtido de header `X-Trace-Id` se presente.
-- Armazenado em MDC; incluído em todo `ApiErrorResponse` e logs.
+Com `quarkus.http.auth.proactive=false`, falhas 401/403 do Quarkus Security podem ocorrer **antes** dos response filters JAX-RS. Por isso a implementação usa duas camadas:
+
+1. **Filtro HTTP Vert.x** (`TraceIdFilterRegistrar` via `Filters`) — gera ou propaga `X-Trace-Id`, grava em MDC e no contexto local Vert.x; cobre auth precoce.
+2. **Filtro JAX-RS `@PreMatching`** (`TraceIdFilter` — `ContainerRequestFilter` + `ContainerResponseFilter`) — complemento na camada REST; ecoa `X-Trace-Id` na resposta.
+
+`ApiErrorFactory` monta o envelope `{code, message, traceId}` lendo o `traceId` do **MDC** e, em fallback, do **contexto local Vert.x**.
 
 ---
 
@@ -455,8 +471,11 @@ public interface JwtProperties {
 ```properties
 # validação SmallRye JWT (HS256 explícito — ver §7.1)
 quarkus.http.auth.proactive=false
-mp.jwt.verify.publickey.algorithm=HS256
+smallrye.jwt.verify.algorithm=HS256
+mp.jwt.verify.publickey=NONE
+mp.jwt.verify.issuer=NONE
 smallrye.jwt.path.groups=role
+# smallrye.jwt.verify.secretkey ← JwtJwkConfigSourceFactory(app.jwt.secret)
 
 # emissão / TTL
 app.jwt.expiration=24h
@@ -468,7 +487,7 @@ app.jwt.expiration=24h
 %aws.app.jwt.secret=${JWT_SECRET}
 ```
 
-> **Invariante — fonte única de secret:** emissão (`app.jwt.secret`) e validação (chave JWK de `smallrye.jwt.verify.secretkey`, §7.1) **devem** resolver para o mesmo valor de `jwtSecret` em todos os profiles — inclusive no default de dev do `%local`. O bootstrap da implementação deriva a representação JWK a partir de `app.jwt.secret` (não são dois secrets independentes).
+> **Invariante — fonte única de secret:** emissão (`app.jwt.secret`) e validação (chave JWK de `smallrye.jwt.verify.secretkey`, §7.1) **devem** resolver para o mesmo valor de `jwtSecret` em todos os profiles — inclusive no default de dev do `%local`. O bootstrap (`JwtJwkConfigSourceFactory`) deriva a representação JWK a partir de `app.jwt.secret` (não são dois secrets independentes).
 
 ---
 
