@@ -343,7 +343,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "cursos", "{{cursoId}}", "inscricoes"]
             },
-            "description": "Requer ESTUDANTE. Stub inscrição (módulo futuro). Com token Admin → 403."
+            "description": "Requer ESTUDANTE. Persiste inscrição no Curso (201 com id/cursoId/estudanteId). Duplicata → 409 INSCRICAO_DUPLICADA. Curso inexistente → 404 CURSO_NOT_FOUND. Admin → 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Inscrever em aula (Estudante)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas/{{aulaId}}/inscricoes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas", "{{aulaId}}", "inscricoes"]
+            },
+            "description": "Requer ESTUDANTE e inscrição prévia no Curso. 201 com id/cursoId/aulaId/estudanteId. Sem inscrição no Curso → 409 INSCRICAO_CURSO_OBRIGATORIA. Duplicata → 409 INSCRICAO_DUPLICADA."
           },
           "response": []
         }
@@ -397,14 +411,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"descricao\": \"Feedback via Postman\"\n}"
+              "raw": "{\n  \"aulaId\": \"{{aulaId}}\",\n  \"descricao\": \"Feedback via Postman\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/avaliacoes",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "avaliacoes"]
             },
-            "description": "Requer ESTUDANTE. Stub provisório (POST)."
+            "description": "Requer ESTUDANTE inscrito na Aula (FR-6). Sem inscrição → 403 INSCRICAO_AULA_OBRIGATORIA. Stub provisório (FR-7 completo no módulo Avaliação)."
           },
           "response": []
         }
