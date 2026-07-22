@@ -40,7 +40,7 @@ class AuthRoleAuthorizationTest {
         given()
                 .header("Authorization", "Bearer " + token)
                 .contentType(ContentType.JSON)
-                .body("{\"titulo\":\"Nova Aula\"}")
+                .body("{\"nome\":\"Nova Aula\"}")
                 .when()
                 .post("/api/v1/cursos/" + UUID.randomUUID() + "/aulas")
                 .then()
@@ -53,21 +53,22 @@ class AuthRoleAuthorizationTest {
     void spec2_3_adminCriaCursoEAula() {
         String token = login("admin@demo.fiap", "admin123");
 
-        given()
+        String cursoId = given()
                 .header("Authorization", "Bearer " + token)
                 .contentType(ContentType.JSON)
                 .body("{\"nome\":\"Novo Curso\"}")
                 .when()
                 .post("/api/v1/cursos")
                 .then()
-                .statusCode(201);
+                .statusCode(201)
+                .extract().path("id");
 
         given()
                 .header("Authorization", "Bearer " + token)
                 .contentType(ContentType.JSON)
-                .body("{\"titulo\":\"Nova Aula\"}")
+                .body("{\"nome\":\"Nova Aula\"}")
                 .when()
-                .post("/api/v1/cursos/" + UUID.randomUUID() + "/aulas")
+                .post("/api/v1/cursos/" + cursoId + "/aulas")
                 .then()
                 .statusCode(201);
     }
@@ -76,7 +77,15 @@ class AuthRoleAuthorizationTest {
     @DisplayName("SPEC-2.4 — Administrador consulta catálogo")
     void spec2_4_adminConsultaCatalogo() {
         String token = login("admin@demo.fiap", "admin123");
-        UUID cursoId = UUID.randomUUID();
+        String cursoId = given()
+                .header("Authorization", "Bearer " + token)
+                .contentType(ContentType.JSON)
+                .body("{\"nome\":\"Curso Auth Consulta\"}")
+                .when()
+                .post("/api/v1/cursos")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
 
         given()
                 .header("Authorization", "Bearer " + token)
@@ -96,6 +105,26 @@ class AuthRoleAuthorizationTest {
     @Test
     @DisplayName("SPEC-2.5 — Estudante consulta catálogo")
     void spec2_5_estudanteConsultaCatalogo() {
+        String adminToken = login("admin@demo.fiap", "admin123");
+        String cursoId = given()
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(ContentType.JSON)
+                .body("{\"nome\":\"Curso Auth Estudante\"}")
+                .when()
+                .post("/api/v1/cursos")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+        String aulaId = given()
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(ContentType.JSON)
+                .body("{\"nome\":\"Aula Auth Estudante\"}")
+                .when()
+                .post("/api/v1/cursos/" + cursoId + "/aulas")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
         String token = login("estudante@demo.fiap", "senha123");
 
         given()
@@ -108,7 +137,7 @@ class AuthRoleAuthorizationTest {
         given()
                 .header("Authorization", "Bearer " + token)
                 .when()
-                .get("/api/v1/aulas/" + UUID.randomUUID())
+                .get("/api/v1/aulas/" + aulaId)
                 .then()
                 .statusCode(200);
     }

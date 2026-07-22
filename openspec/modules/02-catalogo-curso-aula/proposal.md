@@ -96,11 +96,11 @@ Herdada do módulo 01 / AD-8 — **não reinventar**:
 
 ## 6. Critério de pronto do módulo
 
-- [ ] Admin cria Curso e Aula persistidos; resposta 201 com `id`, `nome`, `descricao`.
-- [ ] Estudante e Admin listam/consultam; id inexistente → 404 com código de domínio.
-- [ ] Estudante recebe 403 ao criar Curso/Aula (`AUTH_FORBIDDEN`).
-- [ ] Payload sem `nome` → 400 `VALIDATION_ERROR`.
-- [ ] Criar Aula com `cursoId` inexistente → 404 `CURSO_NOT_FOUND`.
-- [ ] Campo JSON da Aula é `nome` (não `titulo`).
-- [ ] Auth (login, claims, `AUTH_*`) inalterado.
-- [ ] UJ-2 reproduzível na collection Postman.
+- [x] Admin cria Curso e Aula persistidos; resposta 201 com `id`, `nome`, `descricao`.
+- [x] Estudante e Admin listam/consultam; id inexistente → 404 com código de domínio.
+- [x] Estudante recebe 403 ao criar Curso/Aula (`AUTH_FORBIDDEN`).
+- [x] Payload sem `nome` → 400 `VALIDATION_ERROR`.
+- [x] Criar Aula com `cursoId` inexistente → 404 `CURSO_NOT_FOUND`.
+- [x] Campo JSON da Aula é `nome` (não `titulo`).
+- [x] Auth (login, claims, `AUTH_*`) inalterado.
+- [x] UJ-2 reproduzível na collection Postman.

@@ -1,5 +1,7 @@
 package com.fiap.feedbacks.api.web.error;
 
+import com.fiap.feedbacks.domain.exception.AulaNotFoundException;
+import com.fiap.feedbacks.domain.exception.CursoNotFoundException;
 import com.fiap.feedbacks.domain.exception.ForbiddenAccessException;
 import com.fiap.feedbacks.domain.exception.InvalidCredentialsException;
 import com.fiap.feedbacks.domain.exception.InvalidTokenException;
@@ -55,6 +57,30 @@ public final class DomainExceptionMappers {
         public Response toResponse(ForbiddenAccessException exception) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(ApiErrorFactory.of("AUTH_FORBIDDEN", exception.getMessage()))
+                    .build();
+        }
+    }
+
+    @Provider
+    public static class CursoNotFoundExceptionMapper
+            implements ExceptionMapper<CursoNotFoundException> {
+
+        @Override
+        public Response toResponse(CursoNotFoundException exception) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(ApiErrorFactory.of("CURSO_NOT_FOUND", exception.getMessage()))
+                    .build();
+        }
+    }
+
+    @Provider
+    public static class AulaNotFoundExceptionMapper
+            implements ExceptionMapper<AulaNotFoundException> {
+
+        @Override
+        public Response toResponse(AulaNotFoundException exception) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(ApiErrorFactory.of("AULA_NOT_FOUND", exception.getMessage()))
                     .build();
         }
     }

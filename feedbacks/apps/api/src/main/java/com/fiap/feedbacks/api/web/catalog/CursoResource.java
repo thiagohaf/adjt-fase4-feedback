@@ -1,6 +1,19 @@
 package com.fiap.feedbacks.api.web.catalog;
 
+import com.fiap.feedbacks.api.web.catalog.dto.AulaResponse;
+import com.fiap.feedbacks.api.web.catalog.dto.CriarAulaRequest;
+import com.fiap.feedbacks.api.web.catalog.dto.CriarCursoRequest;
+import com.fiap.feedbacks.api.web.catalog.dto.CursoResponse;
+import com.fiap.feedbacks.application.catalog.ConsultarCursoUseCase;
+import com.fiap.feedbacks.application.catalog.CriarAulaUseCase;
+import com.fiap.feedbacks.application.catalog.CriarCursoUseCase;
+import com.fiap.feedbacks.application.catalog.ListarAulasDoCursoUseCase;
+import com.fiap.feedbacks.application.catalog.ListarCursosUseCase;
+import com.fiap.feedbacks.domain.catalog.Aula;
+import com.fiap.feedbacks.domain.catalog.Curso;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -14,26 +27,43 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Stub provisório — módulos 02+ substituem o corpo; path e @RolesAllowed são o contrato estável.
- */
 @Path("/api/v1/cursos")
 @Produces(MediaType.APPLICATION_JSON)
 public class CursoResource {
 
+    @Inject
+    CriarCursoUseCase criarCursoUseCase;
+    @Inject
+    ListarCursosUseCase listarCursosUseCase;
+    @Inject
+    ConsultarCursoUseCase consultarCursoUseCase;
+    @Inject
+    CriarAulaUseCase criarAulaUseCase;
+    @Inject
+    ListarAulasDoCursoUseCase listarAulasDoCursoUseCase;
+
     @GET
     @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
-    public List<Map<String, Object>> listar() {
-        return List.of(Map.of("id", UUID.randomUUID(), "nome", "Curso Demo"));
+    public List<CursoResponse> listar() {
+        return listarCursosUseCase.execute().stream()
+                .map(this::toCursoResponse)
+                .toList();
+    }
+
+    @GET
+    @Path("/{id}")
+    @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
+    public CursoResponse consultar(@PathParam("id") UUID id) {
+        return toCursoResponse(consultarCursoUseCase.execute(id));
     }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @RolesAllowed("ADMINISTRADOR")
-    public Response criar(Map<String, String> request) {
-        String nome = request == null ? "Novo Curso" : request.getOrDefault("nome", "Novo Curso");
+    public Response criar(@Valid CriarCursoRequest request) {
+        var curso = criarCursoUseCase.execute(request.nome(), request.descricao());
         return Response.status(Response.Status.CREATED)
-                .entity(Map.of("id", UUID.randomUUID(), "nome", nome))
+                .entity(toCursoResponse(curso))
                 .build();
     }
 
@@ -41,26 +71,20 @@ public class CursoResource {
     @Path("/{cursoId}/aulas")
     @Consumes(MediaType.APPLICATION_JSON)
     @RolesAllowed("ADMINISTRADOR")
-    public Response criarAula(@PathParam("cursoId") UUID cursoId, Map<String, String> request) {
-        String titulo = request == null ? "Nova Aula" : request.getOrDefault("titulo", "Nova Aula");
+    public Response criarAula(@PathParam("cursoId") UUID cursoId, @Valid CriarAulaRequest request) {
+        var aula = criarAulaUseCase.execute(cursoId, request.nome(), request.descricao());
         return Response.status(Response.Status.CREATED)
-                .entity(Map.of(
-                        "id", UUID.randomUUID(),
-                        "cursoId", cursoId,
-                        "titulo", titulo
-                ))
+                .entity(toAulaResponse(aula))
                 .build();
     }
 
     @GET
     @Path("/{cursoId}/aulas")
     @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
-    public List<Map<String, Object>> listarAulas(@PathParam("cursoId") UUID cursoId) {
-        return List.of(Map.of(
-                "id", UUID.randomUUID(),
-                "cursoId", cursoId,
-                "titulo", "Aula Demo"
-        ));
+    public List<AulaResponse> listarAulas(@PathParam("cursoId") UUID cursoId) {
+        return listarAulasDoCursoUseCase.execute(cursoId).stream()
+                .map(this::toAulaResponse)
+                .toList();
     }
 
     @POST
@@ -70,5 +94,13 @@ public class CursoResource {
         return Response.status(Response.Status.CREATED)
                 .entity(Map.of("cursoId", cursoId, "status", "INSCRITO"))
                 .build();
+    }
+
+    private CursoResponse toCursoResponse(Curso curso) {
+        return new CursoResponse(curso.id(), curso.nome(), curso.descricao());
+    }
+
+    private AulaResponse toAulaResponse(Aula aula) {
+        return new AulaResponse(aula.id(), aula.cursoId(), aula.nome(), aula.descricao());
     }
 }

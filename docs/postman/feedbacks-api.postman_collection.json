@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-feedbacks-api-01",
-    "name": "Feedbacks API — Módulo 01 (Auth)",
-    "description": "Collection da API Quarkus (feedbacks-api).\n\n**Como usar**\n1. Suba a API em `http://localhost:8080` (profile `local`).\n2. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o script salva `accessToken` automaticamente.\n3. As rotas protegidas usam `Authorization: Bearer {{accessToken}}`.\n\n**Usuários seed (Flyway V2)**\n- Estudante: `estudante@demo.fiap` / `senha123`\n- Admin: `admin@demo.fiap` / `admin123`",
+    "name": "Feedbacks API — Auth + Catálogo",
+    "description": "Collection da API Quarkus (feedbacks-api).\n\n**Como usar**\n1. Suba a API em `http://localhost:8080` (profile `local`).\n2. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o script salva `accessToken` automaticamente.\n3. Como Admin: **Criar curso** → salva `cursoId`; **Criar aula** → salva `aulaId` (UJ-2).\n4. As rotas protegidas usam `Authorization: Bearer {{accessToken}}`.\n\n**Usuários seed (Flyway V2)**\n- Estudante: `estudante@demo.fiap` / `senha123`\n- Admin: `admin@demo.fiap` / `admin123`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -225,12 +225,41 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "cursos"]
             },
-            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Stub provisório."
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Lista persistida (criado_em ASC)."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar curso por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cursos", "{{cursoId}}"]
+            },
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Id inexistente → 404 CURSO_NOT_FOUND."
           },
           "response": []
         },
         {
           "name": "Criar curso (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('cursoId', json.id);",
+                  "  console.log('cursoId salvo:', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -241,14 +270,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Curso Postman\"\n}"
+              "raw": "{\n  \"nome\": \"Curso Postman\",\n  \"descricao\": \"Criado via UJ-2\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "cursos"]
             },
-            "description": "Requer ADMINISTRADOR. Com token de Estudante → 403 AUTH_FORBIDDEN."
+            "description": "Requer ADMINISTRADOR. Salva `cursoId` no 201. Com token de Estudante → 403 AUTH_FORBIDDEN."
           },
           "response": []
         },
@@ -262,12 +291,27 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas"]
             },
-            "description": "Requer ESTUDANTE ou ADMINISTRADOR."
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Curso inexistente → 404 CURSO_NOT_FOUND."
           },
           "response": []
         },
         {
           "name": "Criar aula no curso (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('aulaId', json.id);",
+                  "  console.log('aulaId salvo:', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -278,14 +322,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"titulo\": \"Aula Postman\"\n}"
+              "raw": "{\n  \"nome\": \"Aula Postman\",\n  \"descricao\": \"Aula criada via UJ-2\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas"]
             },
-            "description": "Requer ADMINISTRADOR."
+            "description": "Requer ADMINISTRADOR. Campo `nome` (não `titulo`). Salva `aulaId` no 201."
           },
           "response": []
         },
@@ -299,7 +343,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "cursos", "{{cursoId}}", "inscricoes"]
             },
-            "description": "Requer ESTUDANTE. Com token Admin → 403."
+            "description": "Requer ESTUDANTE. Stub inscrição (módulo futuro). Com token Admin → 403."
           },
           "response": []
         }
@@ -318,7 +362,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "aulas", "{{aulaId}}"]
             },
-            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Stub provisório."
+            "description": "Requer ESTUDANTE ou ADMINISTRADOR. Id inexistente → 404 AULA_NOT_FOUND."
           },
           "response": []
         }
