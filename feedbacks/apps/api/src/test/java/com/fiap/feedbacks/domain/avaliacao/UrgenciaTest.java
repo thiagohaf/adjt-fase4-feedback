@@ -71,5 +71,24 @@ class UrgenciaTest {
     void avaliacaoCriarRejeitaIdsNulos() {
         assertThatThrownBy(() -> Avaliacao.criar(null, UUID.randomUUID(), UUID.randomUUID(), "ok", 5))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Avaliacao.criar(UUID.randomUUID(), null, UUID.randomUUID(), "ok", 5))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Avaliacao.criar(UUID.randomUUID(), UUID.randomUUID(), null, "ok", 5))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void avaliacaoCriarRejeitaDescricaoNula() {
+        assertThatThrownBy(() -> Avaliacao.criar(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null, 5
+        )).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void avaliacaoCriarFazTrimNaDescricao() {
+        Avaliacao avaliacao = Avaliacao.criar(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "  ok  ", 9);
+        assertThat(avaliacao.descricao()).isEqualTo("ok");
+        assertThat(avaliacao.urgencia()).isEqualTo(Urgencia.BAIXA);
     }
 }

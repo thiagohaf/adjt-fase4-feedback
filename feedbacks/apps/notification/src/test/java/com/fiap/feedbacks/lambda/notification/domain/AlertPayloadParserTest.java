@@ -51,6 +51,36 @@ class AlertPayloadParserTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void parseCampoNaoTextualFalha() {
+        assertThatThrownBy(() -> parser.parse("""
+                {"avaliacaoId":123,"descricao":"d","urgencia":"ALTA",
+                "ocorridoEm":"t","aulaId":"a","cursoId":"c"}
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("avaliacaoId");
+    }
+
+    @Test
+    void parseCampoEmBrancoFalha() {
+        assertThatThrownBy(() -> parser.parse("""
+                {"avaliacaoId":"id","descricao":" ","urgencia":"ALTA",
+                "ocorridoEm":"t","aulaId":"a","cursoId":"c"}
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("descricao");
+    }
+
+    @Test
+    void parseCampoNullJsonFalha() {
+        assertThatThrownBy(() -> parser.parse("""
+                {"avaliacaoId":"id","descricao":null,"urgencia":"ALTA",
+                "ocorridoEm":"t","aulaId":"a","cursoId":"c"}
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("descricao");
+    }
+
     private static String fixture(String path) throws IOException {
         try (var in = AlertPayloadParserTest.class.getClassLoader().getResourceAsStream(path)) {
             assertThat(in).isNotNull();

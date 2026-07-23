@@ -45,4 +45,12 @@ class SesEmailSenderTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("from");
     }
+
+    @Test
+    void fromNullFalha() {
+        var sender = new SesEmailSender(sesClient, null);
+        assertThatThrownBy(() -> sender.send("a@b.c", "s", "b"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("from");
+    }
 }
