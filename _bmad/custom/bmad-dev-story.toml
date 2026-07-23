@@ -1,0 +1,10 @@
+# Team overrides for bmad-dev-story (survives BMAD reinstall).
+# Merged with skill customize.toml via resolve_customization.py.
+
+[workflow]
+
+persistent_facts = [
+  "Coverage gate (AD-14): after implementing Java/Maven work, run `mvn clean verify` in the affected module (feedbacks/apps/api or feedbacks/apps/notification).",
+  "If mvn verify fails on jacoco:check OR Line/Branch coverage is below 90% in target/jacoco-report/jacoco.xml, read and execute the skill bmad-openspec-jacoco, add missing unit tests, and re-run verify until green — before marking the story task complete or proceeding to code review.",
+  "Do not skip the JaCoCo loop; do not mark story done while the coverage gate is red.",
+]

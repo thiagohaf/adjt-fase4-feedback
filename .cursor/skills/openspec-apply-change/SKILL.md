@@ -83,7 +83,19 @@ Implement tasks from an OpenSpec change.
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+7. **Java/Maven coverage gate (AD-14)**
+
+   When the change touches Java under `feedbacks/apps/api` or `feedbacks/apps/notification`:
+
+   1. Run `mvn clean verify` in the affected module(s).
+   2. If the build fails on `jacoco:check`, or Line/Branch coverage in `target/jacoco-report/jacoco.xml` is below 90%:
+      - Read and execute the skill **`bmad-openspec-jacoco`** (audit XML + OpenSpec → add JUnit 5 + Mockito tests → re-verify).
+      - Repeat until verify is green **and** Line ≥ 90% **and** Branch ≥ 90%.
+   3. Only then treat Java implementation tasks as done for archiving.
+
+   Do not skip this loop when JaCoCo fails.
+
+8. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -151,6 +163,7 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- For Java/Maven modules: do not finish while `jacoco:check` fails or Line/Branch < 90% — run `bmad-openspec-jacoco` first
 
 **Fluid Workflow Integration**
 

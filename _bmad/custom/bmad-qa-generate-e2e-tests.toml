@@ -1,0 +1,7 @@
+# Team overrides for bmad-qa-generate-e2e-tests (survives BMAD reinstall).
+
+[workflow]
+
+persistent_facts = [
+  "If the Maven module under test has Line or Branch coverage below 90% (jacoco.xml) or jacoco:check fails, invoke skill bmad-openspec-jacoco to close unit-coverage gaps before or alongside E2E generation; unit gaps are not solved by E2E alone.",
+]

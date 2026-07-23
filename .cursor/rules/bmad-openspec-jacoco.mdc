@@ -1,0 +1,17 @@
+---
+description: Ao trabalhar cobertura/testes Java ou JaCoCo, invocar a skill bmad-openspec-jacoco
+globs: "**/target/jacoco-report/jacoco.xml,**/target/site/jacoco/jacoco.xml,**/src/test/**/*.java,openspec/**/*.md,**/pom.xml"
+alwaysApply: false
+---
+
+# JaCoCo + OpenSpec — despacho de skill
+
+Quando o contexto envolver cobertura de testes Java/Maven, falha de `jacoco:check`, ou limiar AD-14 (Line/Branch ≥ 90%):
+
+1. **Leia e execute** a skill `bmad-openspec-jacoco` (em `.cursor/skills/bmad-openspec-jacoco/SKILL.md` ou espelhos BMAD).
+2. Não invente um fluxo paralelo — siga o loop da skill: OpenSpec → `jacoco.xml` → testes JUnit 5 + Mockito → `mvn clean verify`.
+3. Relatório canônico: `target/jacoco-report/jacoco.xml` (fallback `target/site/jacoco/`).
+4. Módulos: `feedbacks/apps/api` e `feedbacks/apps/notification`.
+5. Não escreva testes para DTO/Entity/Mapper/`@Configuration`; sugira `@Generated` ou excludes do plugin.
+
+Pipelines BMAD (`bmad-dev-story`, QA) e OpenSpec (`openspec-apply-change`) devem invocar essa skill automaticamente quando o verify falhar por cobertura ou Branch < 90%.
