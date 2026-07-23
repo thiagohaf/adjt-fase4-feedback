@@ -6,7 +6,7 @@
 | **PRD** | §4.6 Relatórios periódicos (serverless) |
 | **FRs vinculados** | FR-11, FR-17, FR-12 |
 | **User Journeys** | UJ-4 (Bruno — e-mail HTML + PDF S3) |
-| **Status** | Em proposta (change `relatorios-ses-s3-lambda-quarkus`) |
+| **Status** | Implementado (change `relatorios-ses-s3-lambda-quarkus` — apply) |
 | **Dependências** | Módulo 04 (Avaliação persistida); módulo 05 opcional para SES verificado |
 | **Bloqueia** | Cenas 9–10 do roteiro; evidência SM-1 de relatório semanal + PDF |
 
@@ -71,7 +71,7 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 ## 6. Critério de pronto do módulo
 
-- [ ] Invoke `diario` → HTML + PDF com agregados do dia civil anterior.
-- [ ] Invoke `semanal` → HTML + PDF com média, qty/dia e qty/urgência.
-- [ ] Crons EventBridge documentados (08:00 SP).
-- [ ] Sem mutação de domínio; JaCoCo ≥ 90%; alerta/API intactos.
+- [x] Invoke `diario` → HTML + PDF com agregados do dia civil anterior.
+- [x] Invoke `semanal` → HTML + PDF com média, qty/dia e qty/urgência.
+- [x] Crons EventBridge documentados (08:00 SP).
+- [x] Sem mutação de domínio; JaCoCo ≥ 90%; alerta/API intactos.
