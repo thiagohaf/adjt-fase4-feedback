@@ -4,8 +4,9 @@
 
 Gate FR-6 em `POST /api/v1/avaliacoes`: exige inscrição do Estudante na Aula
 (`INSCRICAO_AULA_OBRIGATORIA` / `VALIDATION_ERROR`) via porta
-`VerificarInscricaoAulaUseCase`, sem implementar Avaliação completa (FR-7).
-Derivado da change `inscricao-curso-aula-quarkus` (módulo 03).
+`VerificarInscricaoAulaUseCase`. Com inscrição, o fluxo segue para criação real
+de Avaliação (FR-7/FR-9). Derivado das changes `inscricao-curso-aula-quarkus`
+(módulo 03) e `avaliacao-aula-quarkus` (módulo 04).
 
 ## Requirements
 
@@ -26,16 +27,18 @@ sem tratar a operação como sucesso de negócio. Ausência de `aulaId` válido 
 
 ### Requirement: Criar Avaliação com inscrição na Aula passa o gate
 
-O sistema SHALL permitir que `POST /api/v1/avaliacoes` continue o fluxo do stub de Avaliação
-(resposta 201 provisória) quando o Estudante estiver inscrito na Aula informada. Este
-requirement NÃO obriga persistência de Avaliação de domínio, cálculo de Urgência nem
-demais regras de FR-7.
+O sistema SHALL permitir que `POST /api/v1/avaliacoes` continue o fluxo de criação real de
+Avaliação (FR-7: validar `descricao`/`nota`, persistir, derivar Urgência, aplicar unicidade)
+quando o Estudante estiver inscrito na Aula informada. O gate MUST NÃO rejeitar por falta de
+inscrição nesse caso. Demais regras de criação, listagem e publish são definidas pelas
+capabilities `avaliacao-criar`, `avaliacao-urgencia`, `avaliacao-listar` e
+`avaliacao-evento-alerta`.
 
 #### Scenario: SPEC-6.2 — Criar Avaliação com inscrição na Aula passa o gate
 
-- **WHEN** o Estudante inscrito na Aula envia `POST /api/v1/avaliacoes` com esse `aulaId`
+- **WHEN** o Estudante inscrito na Aula envia `POST /api/v1/avaliacoes` com esse `aulaId` e payload válido de Avaliação (`descricao`, `nota`)
 - **THEN** a API não rejeita por falta de inscrição
-- **AND** o comportamento restante permanece o do stub de Avaliação (FR-7 fora de escopo)
+- **AND** o fluxo continua para a criação real de Avaliação (persistência + Urgência conforme FR-7/FR-9)
 
 ### Requirement: Porta de verificação de inscrição em Aula
 
