@@ -67,6 +67,18 @@ class ProcessAlertUseCaseTest {
         assertThat(emailSender.sentEmails()).isEmpty();
     }
 
+    @Test
+    void adminEmailNullFalhaSemEnviar() throws IOException {
+        useCase = new ProcessAlertUseCase(
+                new AlertPayloadParser(new ObjectMapper()),
+                emailSender,
+                null);
+        assertThatThrownBy(() -> useCase.process(fixture()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ADMIN_EMAIL");
+        assertThat(emailSender.sentEmails()).isEmpty();
+    }
+
     private static String fixture() throws IOException {
         try (var in = ProcessAlertUseCaseTest.class.getClassLoader()
                 .getResourceAsStream("fixtures/ad5-alerta-alta.json")) {

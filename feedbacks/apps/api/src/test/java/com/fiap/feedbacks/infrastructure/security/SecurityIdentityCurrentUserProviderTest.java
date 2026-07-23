@@ -73,6 +73,15 @@ class SecurityIdentityCurrentUserProviderTest {
     }
 
     @Test
+    void subjectNull_throwsForbidden() {
+        when(securityIdentity.isAnonymous()).thenReturn(false);
+        when(jwt.getSubject()).thenReturn(null);
+
+        var provider = new SecurityIdentityCurrentUserProvider(securityIdentity, jwt);
+        assertThatThrownBy(provider::getCurrentUserId).isInstanceOf(ForbiddenAccessException.class);
+    }
+
+    @Test
     void missingRole_throwsForbidden() {
         when(securityIdentity.isAnonymous()).thenReturn(false);
         when(jwt.getSubject()).thenReturn(UUID.randomUUID().toString());

@@ -60,6 +60,15 @@ class AlertSqsHandlerTest {
     void eventoVazioNaoFalha() {
         handler.handleRequest(null, null);
         handler.handleRequest(new SQSEvent(), null);
+
+        SQSEvent semRecords = new SQSEvent();
+        semRecords.setRecords(null);
+        handler.handleRequest(semRecords, null);
+
+        SQSEvent listaVazia = new SQSEvent();
+        listaVazia.setRecords(List.of());
+        handler.handleRequest(listaVazia, null);
+
         assertThat(emailSender.sentEmails()).isEmpty();
     }
 
