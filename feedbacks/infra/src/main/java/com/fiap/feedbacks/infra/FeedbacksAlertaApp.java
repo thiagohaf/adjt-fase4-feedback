@@ -7,7 +7,7 @@ import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.cxapi.CloudAssembly;
 
 /**
- * Entry point CDK Java — stack mínimo de alerta (FR-10).
+ * Entry point CDK Java — alerta (FR-10) + relatório (FR-11/12/17).
  */
 public final class FeedbacksAlertaApp {
 
@@ -25,15 +25,26 @@ public final class FeedbacksAlertaApp {
             region = "us-east-1";
         }
 
+        Environment env = Environment.builder()
+                .account(account)
+                .region(region)
+                .build();
+
         new AlertaNotificationStack(
                 app,
                 "FeedbacksAlertaNotificationStack",
                 StackProps.builder()
-                        .env(Environment.builder()
-                                .account(account)
-                                .region(region)
-                                .build())
+                        .env(env)
                         .description("FR-10 — SQS + DLQ + lambda-notification (SES); sem ECS/RDS/report")
+                        .build());
+
+        new RelatorioStack(
+                app,
+                "FeedbacksRelatorioStack",
+                StackProps.builder()
+                        .env(env)
+                        .description(
+                                "FR-11/12/17 — EventBridge + lambda-report (VPC) + S3 + SES; sem ECS/ECR")
                         .build());
 
         CloudAssembly assembly = app.synth();
