@@ -7,7 +7,8 @@ context: |
   Tech stack: Java 17, Quarkus 3.33 LTS (BOM quarkus-bom), Hibernate ORM,
   PostgreSQL + Flyway, SmallRye JWT (HS256), SmallRye Health, JaCoCo (gate >= 90%),
   @QuarkusTest + RestAssured, JUnit 5 + Mockito. AWS sa-east-1: ECS Fargate + ALB,
-  RDS, SQS + DLQ, EventBridge, SES, S3, Lambdas via quarkus-amazon-lambda, CDK.
+  RDS, SQS + DLQ, EventBridge, SES, S3, Lambdas via quarkus-amazon-lambda,
+  IaC AWS CDK 2.x em Java (Maven) sob feedbacks/infra — sem TypeScript no repo.
 
   Arquitetura: Modular Monolith Layered + Async Side Effects, hexagonal (ports &
   adapters); direcao de dependencia api -> application -> domain <- infrastructure.

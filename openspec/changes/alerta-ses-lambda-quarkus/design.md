@@ -7,8 +7,10 @@
 
 - Módulos 01–04 em `develop`: auth, catálogo, inscrição, Avaliação real + Urgência +
   publish pós-commit ALTA via `EvaluationEventPublisher` (contrato AD-5).
-- Adapters Kafka/SQS da API ainda **no-op** (fila/Lambda não provisionados).
-- Não existe `feedbacks/apps/notification` nem `feedbacks/infra`.
+- **Estado após apply (esta change):** `feedbacks/apps/notification` (Quarkus Lambda SQS→SES),
+  `feedbacks/infra` (CDK **Java**), adapter SQS da API config-driven
+  (`feedbacks.messaging.sqs.queue-url` / `FEEDBACKS_SQS_ALERT_QUEUE_URL`); Kafka `%local` e
+  Fake `%test` inalterados; SQS sem URL continua no-op seguro.
 - Branch: `feature/openspec-05-alerta-ses-lambda` a partir de `develop`.
 - Docs do módulo em `openspec/modules/05-alerta-ses/`.
 
@@ -61,10 +63,11 @@ Se `feedbacks.messaging.sqs.queue-url` ausente → log no-op (comportamento atua
 no CI). Se presente → `SendMessage` com body JSON AD-5. Kafka `%local` e Fake `%test`
 inalterados.
 
-### D6 — CDK mínimo só do caminho alerta
+### D6 — CDK mínimo só do caminho alerta (Java)
 
-Stack: SQS + DLQ + event source mapping → Lambda; IAM `ses:SendEmail`; grant read
-secret `adminEmail`. Sem ECS/RDS/EventBridge report nesta change.
+Stack Maven/`software.amazon.awscdk` em `feedbacks/infra`: SQS + DLQ + event source
+mapping → Lambda; IAM `ses:SendEmail`; grant read secret `adminEmail`. Sem
+ECS/RDS/EventBridge report nesta change. Sem Node/TypeScript no IaC.
 
 ### D7 — Conteúdo do e-mail
 

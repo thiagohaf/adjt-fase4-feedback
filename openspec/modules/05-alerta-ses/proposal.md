@@ -6,7 +6,7 @@
 | **PRD** | §4.5 Urgência / Notificação imediata ALTA |
 | **FRs vinculados** | FR-10 (+ consumo AD-4/AD-5; publish já no módulo 04) |
 | **User Journeys** | UJ-3 (Bruno — alerta no e-mail) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementado (change `alerta-ses-lambda-quarkus`; branch `feature/openspec-05-alerta-ses-lambda`) |
 | **Dependências** | Módulo 04 (Avaliação + `EvaluationEventPublisher` / AD-5) |
 | **Bloqueia** | Cena 8 do roteiro; evidência SM-1 de alerta |
 
@@ -77,10 +77,10 @@ não recebe Alerta de urgência sem consultar a API — UJ-3 e FR-10 falham na d
 
 ## 6. Critério de pronto do módulo
 
-- [ ] Mensagem AD-5 válida → SES chamado com descrição, urgência e data.
-- [ ] Payload inválido → não envia e-mail; falha observável (log / exception → retry/DLQ).
-- [ ] Lambda não acessa banco.
-- [ ] `adminEmail` via config/secret — não hardcoded no código.
-- [ ] JaCoCo ≥ 90% no módulo notification.
-- [ ] MÉDIA/BAIXA continuam sem publish (regressão módulo 04).
-- [ ] Auth, catálogo, inscrição, Avaliação HTTP inalterados.
+- [x] Mensagem AD-5 válida → SES chamado com descrição, urgência e data.
+- [x] Payload inválido → não envia e-mail; falha observável (log / exception → retry/DLQ).
+- [x] Lambda não acessa banco.
+- [x] `adminEmail` via config/secret — não hardcoded no código.
+- [x] JaCoCo ≥ 90% no módulo notification.
+- [x] MÉDIA/BAIXA continuam sem publish (regressão módulo 04).
+- [x] Auth, catálogo, inscrição, Avaliação HTTP inalterados.
