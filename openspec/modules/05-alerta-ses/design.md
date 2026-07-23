@@ -5,7 +5,7 @@
 | **Módulo** | `05-alerta-ses` |
 | **Stack** | Java 17, Quarkus 3.33 LTS, `quarkus-amazon-lambda`, AWS SDK SES/SQS v2 |
 | **Paradigma** | Async side effect SRP (Lambda); porta `EmailSender` |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementado (CDK Java em `feedbacks/infra`; app em `feedbacks/apps/notification`) |
 | **Depende de** | 04 (publish AD-5 / `EvaluationEventPublisher`) |
 | **Spine** | AD-1, AD-4, AD-5, AD-7, AD-12, AD-13, AD-14, AD-17, AD-18 |
 
@@ -67,8 +67,9 @@ com.fiap.feedbacks.lambda.notification
 
 ---
 
-## 5. CDK mínimo (`feedbacks/infra`)
+## 5. CDK mínimo (`feedbacks/infra`) — Java
 
+- Maven + AWS CDK v2 (`software.amazon.awscdk`), Java 17 — sem TypeScript/Node no IaC.
 - Queue + DLQ + redrive.
 - Function a partir de `function.zip` do módulo notification.
 - Event source SQS → Lambda.

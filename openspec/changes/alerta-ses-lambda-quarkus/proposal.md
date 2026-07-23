@@ -46,10 +46,11 @@ Sem a Lambda SRP, o enunciado de notificação imediata e a cena 8 do roteiro fi
 - **Código novo:** `feedbacks/apps/notification/` — handler Quarkus Lambda, parse AD-5,
   porta `EmailSender` + adapter SES, testes + JaCoCo.
 - **Código existente:** `SqsEvaluationEventPublisher` (API) — de no-op para publish real
-  quando `feedbacks.sqs.queue-url` (ou equivalente) estiver definido; Kafka `%local` / Fake
-  test inalterados no comportamento de domínio.
-- **Infra:** `feedbacks/infra/` (CDK) — SQS+DLQ+Lambda notification + IAM SES + binding
-  `adminEmail`; **fora:** ECS/ALB/RDS full stack, `lambda-report`, EventBridge (FR-11+).
+  quando `feedbacks.messaging.sqs.queue-url` (`FEEDBACKS_SQS_ALERT_QUEUE_URL`) estiver
+  definido; Kafka `%local` / Fake `%test` inalterados no comportamento de domínio.
+- **Infra:** `feedbacks/infra/` (AWS CDK **Java** / Maven) — SQS+DLQ+Lambda notification +
+  IAM SES + binding `adminEmail`; **fora:** ECS/ALB/RDS full stack, `lambda-report`,
+  EventBridge (FR-11+). Sem TypeScript/Node no IaC do repositório.
 - **Não tocar:** auth, catálogo, inscrição, domínio de Avaliação (FR-7–9), Flyway, paths HTTP.
 - **Docs:** collection Postman / nota de demo UJ-3; módulo `openspec/modules/05-alerta-ses/`.
 - **Branch:** `feature/openspec-05-alerta-ses-lambda` a partir de `develop`; PR para `develop`.

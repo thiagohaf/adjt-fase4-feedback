@@ -202,7 +202,7 @@ flowchart LR
 | Amazon SQS / EventBridge / SES / S3 / ECR / ECS Fargate / ALB / CloudWatch | AWS `sa-east-1` |
 | AWS SDK for Java | 2.x (BOM gerenciado) |
 | CI/CD | GitHub Actions → build+JaCoCo → ECR / Lambda → `cdk deploy` |
-| IaC | AWS CDK 2.x / `aws-cdk-lib` 2.261.0 (TypeScript) `[ASSUMPTION: linguagem CDK; Java CDK ok sem mudar AD-12]` |
+| IaC | AWS CDK 2.x / `software.amazon.awscdk` (Java 17, Maven) em `feedbacks/infra` `[DECIDIDO 2026-07-22: CDK Java; AD-12 inalterado — ferramenta CDK, não a linguagem]` |
 
 **Starter (greenfield):** `code.quarkus.io` ou CLI `quarkus create` — Quarkus **3.33 LTS**, Java 17; API: `quarkus-rest-jackson`, `quarkus-hibernate-orm`, `quarkus-jdbc-postgresql`, `quarkus-flyway`, `quarkus-smallrye-jwt` + `quarkus-smallrye-jwt-build`, `quarkus-hibernate-validator`, `quarkus-smallrye-health`; Lambdas: `quarkus-amazon-lambda`; **sem** extensão REST/HTTP nas Lambdas.
 
@@ -219,10 +219,9 @@ feedbacks/
       src/main/java/.../domain/
       src/main/java/.../infrastructure/
       src/main/resources/db/migration/
-  lambdas/
-    notification/           # Quarkus + quarkus-amazon-lambda: SQS → SES
-    report/                 # Quarkus + quarkus-amazon-lambda: EventBridge → RDS → S3 + SES
-  infra/                    # AWS CDK (TypeScript)
+    notification/           # Quarkus + quarkus-amazon-lambda: SQS → SES (FR-10)
+    # report/               # futuro FR-11+ (EventBridge → RDS → S3 + SES)
+  infra/                    # AWS CDK Java (Maven) — alerta mínimo; ECS/report no FR-15+
   docker-compose.yml        # Postgres + Kafka (local)
   .github/workflows/        # test+JaCoCo + build + deploy
   docs/                     # teardown, roteiro vídeo, Postman
@@ -302,7 +301,7 @@ flowchart LR
 | Refresh token / rotação JWT | Fora do MVP (PRD §6.2) |
 | Multi-AZ / HA RDS | Custo e non-goal |
 | SnapStart / Graal nas Lambdas | Cold start tolerado (PRD NFR) |
-| CDK em Java vs TypeScript | Seed TypeScript; troca não altera AD-12 |
+| CDK language | **Resolvido 2026-07-22:** Java (Maven) em `feedbacks/infra`; AD-12 inalterado |
 | Endpoint admin de relatório | Rejeitado por AD-10 |
 | Cobertura integração/E2E | AD-14 cobre unitários |
 | Pin exato de imagem Kafka no Compose | Local-only; não afeta contrato AD-5 |
