@@ -1,0 +1,21 @@
+# DO NOT EDIT -- overwritten on every update.
+#
+# Workflow customization surface for bmad-openspec-jacoco.
+
+[workflow]
+
+activation_steps_prepend = []
+
+activation_steps_append = []
+
+persistent_facts = [
+  "AD-14: JaCoCo gate LINE >= 0.90 on mvn verify; this skill also requires Branch >= 90% from jacoco.xml.",
+  "Canonical report path: {module}/target/jacoco-report/jacoco.xml (fallback: target/site/jacoco/jacoco.xml).",
+  "Maven modules: feedbacks/apps/api and feedbacks/apps/notification.",
+  "Do not unit-test DTOs, Entities, Records, simple Enums, MapStruct mappers, or @Configuration — suggest @Generated or jacoco excludes instead.",
+  "Cross-check missed Line/Branch with OpenSpec under openspec/changes/, openspec/specs/, and openspec/modules/.",
+  "Verification loop command: mvn clean verify (not only test/jacoco:report).",
+  "file:{project-root}/**/project-context.md",
+]
+
+on_complete = ""
