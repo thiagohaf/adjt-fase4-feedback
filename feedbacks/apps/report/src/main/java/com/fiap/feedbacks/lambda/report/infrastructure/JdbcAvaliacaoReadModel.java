@@ -3,8 +3,6 @@ package com.fiap.feedbacks.lambda.report.infrastructure;
 import com.fiap.feedbacks.lambda.report.application.port.AvaliacaoReadModel;
 import com.fiap.feedbacks.lambda.report.domain.AvaliacaoSnapshot;
 import com.fiap.feedbacks.lambda.report.domain.ReportWindow;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import javax.sql.DataSource;
@@ -18,8 +16,8 @@ import java.util.List;
 
 /**
  * Read-only JDBC na tabela {@code avaliacao} (AD-16 / SPEC-11.3) — sem Flyway neste módulo.
+ * Instanciado via {@link AvaliacaoReadModelProducer} quando JDBC está habilitado.
  */
-@ApplicationScoped
 public class JdbcAvaliacaoReadModel implements AvaliacaoReadModel {
 
     private static final Logger LOG = Logger.getLogger(JdbcAvaliacaoReadModel.class);
@@ -32,7 +30,6 @@ public class JdbcAvaliacaoReadModel implements AvaliacaoReadModel {
 
     private final DataSource dataSource;
 
-    @Inject
     public JdbcAvaliacaoReadModel(DataSource dataSource) {
         this.dataSource = dataSource;
     }
