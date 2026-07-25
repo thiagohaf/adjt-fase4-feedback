@@ -87,6 +87,10 @@ public class RelatorioStack extends Stack {
             env.put("DB_URL", dbSecret.secretValueFromJson("dbUrl").unsafeUnwrap());
             env.put("DB_USER", dbSecret.secretValueFromJson("dbUser").unsafeUnwrap());
             env.put("DB_PASSWORD", dbSecret.secretValueFromJson("dbPassword").unsafeUnwrap());
+            env.put("FEEDBACKS_REPORT_JDBC_ENABLED", "true");
+        } else {
+            // Demo UJ-4 sem RDS: PDF/SES com agregados zerados (SPEC-12.5)
+            env.put("FEEDBACKS_REPORT_JDBC_ENABLED", "false");
         }
 
         Function.Builder fnBuilder = Function.Builder.create(this, "ReportLambda")
