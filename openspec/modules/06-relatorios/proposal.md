@@ -32,7 +32,7 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 | # | Capacidade | Detalhe |
 | --- | --- | --- |
-| 1 | **Lambda report** | Quarkus; `periodo=diario\|semanal`; VPC + RDS read-only. |
+| 1 | **Lambda report** | Quarkus; `periodo=diario\|semanal`; RDS read-only (JDBC). Demo: Lambda fora de VPC + RDS público; alvo AD-17: VPC + RDS privado. |
 | 2 | **Agregados** | Diário/semanal conforme AD-16; janelas civis SP (AD-6). |
 | 3 | **HTML + PDF** | SES + S3 key canônica. |
 | 4 | **EventBridge + invoke** | Crons 08:00 SP; demo via invoke (AD-10). |
@@ -52,15 +52,17 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 - Avaliações já persistem `nota`, `urgencia`, `ocorrido_em`.
 - Um Administrador de demo; SES sandbox OK.
-- VPC/RDS demo disponíveis ou importáveis no CDK.
+- RDS demo provisionável (público) + secret `feedbacks/db`, **ou** VPC/SG importáveis no CDK (AD-17).
+- Sem NAT na conta demo: preferir RDS público + Lambda fora de VPC (exceção documentada no AD-17).
 
 ## 4. Riscos e mitigações
 
 | Risco | Mitigação |
 | --- | --- |
-| Sem RDS no CDK atual | Props importáveis + fake read model no CI |
+| Sem RDS / NAT caro | Demo: RDS público + JDBC via `FEEDBACKS_DB_SECRET_NAME`; CI: EmptyAvaliacaoReadModel |
 | TZ / janela errada | Testes de fronteira SP |
 | SES sandbox | Reusar `adminEmail` verificado |
+| SG 5432 aberto (demo) | Senha forte + teardown pós-vídeo |
 
 ## 5. Entregáveis
 

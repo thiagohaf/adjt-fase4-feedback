@@ -7,6 +7,12 @@ alerta (`lambda-report`) agrega Avaliações no RDS (read-only), envia e-mail HT
 SES ao Administrador e grava PDF no S3. Derivado da change
 `relatorios-ses-s3-lambda-quarkus` (módulo 06).
 
+**Envelope demo (conectividade):** a leitura JDBC MAY ocorrer com `lambda-report` fora
+de VPC contra endpoint RDS público quando o alvo AD-17 (VPC privada + RDS sem IP
+público) não estiver provisionado na conta — ver AD-17 *Demo academic exception* e
+módulo `06-relatorios/design.md`. Requisitos de agregados/janela/entrega abaixo
+permanecem inalterados.
+
 ## Requirements
 
 ### Requirement: Lambda report gera Relatório semanal com agregados

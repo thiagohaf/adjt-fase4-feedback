@@ -28,7 +28,7 @@ companions: []
 | `domain` | regras (Urgência, inscrição, unicidade Avaliação) | mesmo JAR |
 | `infrastructure` | JPA (Hibernate ORM), SQS/Kafka adapter, Security, Secrets, SmallRye Health | mesmo JAR |
 | `lambda-notification` | Quarkus + quarkus-amazon-lambda: SQS → SES (SRP alerta) | Lambda (sem VPC) |
-| `lambda-report` | Quarkus + quarkus-amazon-lambda: EventBridge → agrega → PDF S3 + SES | Lambda (VPC) |
+| `lambda-report` | Quarkus + quarkus-amazon-lambda: EventBridge → agrega → PDF S3 + SES | Lambda (VPC no alvo AD-17; demo acadêmico: fora de VPC + RDS público) |
 
 Capacidades **síncronas** (FR-1–FR-8, FR-13) vivem só no monólito. Efeitos **assíncronos** (FR-10–FR-12, FR-17) vivem só nas Lambdas.
 
@@ -155,7 +155,8 @@ flowchart LR
 
 - **Binds:** ECS, RDS, Lambdas, rede
 - **Prevents:** Lambda-report sem rota ao RDS; API pública sem ALB; notification na VPC sem necessidade
-- **Rule:** VPC com subnets privadas para **ECS** + **RDS** + **`lambda-report`**; **`lambda-notification` fora da VPC** (SQS+SES); ALB internet-facing → ECS; SG: ECS e `lambda-report` → RDS:5432; sem IP público no RDS
+- **Rule (alvo):** VPC com subnets privadas para **ECS** + **RDS** + **`lambda-report`**; **`lambda-notification` fora da VPC** (SQS+SES); ALB internet-facing → ECS; SG: ECS e `lambda-report` → RDS:5432; sem IP público no RDS
+- **Demo academic exception (custo / prazo):** quando a conta não tem NAT nem subnets privadas, a demo MAY usar **RDS PostgreSQL público** (`db.t4g.micro`) + **`lambda-report` fora da VPC** alcançando o endpoint pela internet (secret `feedbacks/db`, `FEEDBACKS_DB_SECRET_NAME`), mantendo SES/S3 sem VPC endpoints. **Teardown obrigatório** após o vídeo (apagar RDS + secret). O alvo AD-17 permanece a referência para entrega “completa”; a exceção não altera `lambda-notification` (continua fora da VPC).
 
 ### AD-18 — Resiliência nas bordas externas
 
