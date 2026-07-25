@@ -5,7 +5,7 @@
 | **Módulo** | `06-relatorios` |
 | **Stack** | Java 17, Quarkus 3.33 LTS, `quarkus-amazon-lambda`, JDBC/ORM read-only, SES, S3 |
 | **Paradigma** | Job serverless SRP; portas read model / e-mail / PDF store |
-| **Status** | Em proposta |
+| **Status** | Implementado (UJ-4 demo com JDBC + seed) |
 | **Depende de** | 04 (Avaliação); secrets/SES do 05 |
 | **Spine** | AD-1, AD-3, AD-6, AD-10, AD-12, AD-13, AD-14, AD-16, AD-17, AD-18 |
 
@@ -24,6 +24,15 @@ flowchart LR
   SM[Secrets adminEmail + DB] --> LR
 ```
 
+### Envelope de rede (demo vs alvo AD-17)
+
+| Modo | Lambda report | RDS | Quando usar |
+| --- | --- | --- | --- |
+| **Demo acadêmico (custo)** | Fora de VPC | Público (`PubliclyAccessible`); secret `feedbacks/db`; `FEEDBACKS_DB_SECRET_NAME` | Conta sem NAT/subnets privadas; prazo/teardown |
+| **Alvo AD-17** | VPC + SG → :5432 | Privado, sem IP público | Quando houver private + egress (NAT ou endpoints) |
+
+Sem secret DB: `FEEDBACKS_REPORT_JDBC_ENABLED=false` → read model vazio (SPEC-12.5 zeros).
+Com secret: JDBC on + agregados reais.
 ---
 
 ## 2. Pacotes (`feedbacks/apps/report`)
@@ -68,9 +77,11 @@ com.fiap.feedbacks.lambda.report
 
 ## 5. CDK (`feedbacks/infra`) — Java
 
-- Bucket S3; Lambda report na VPC; SG → RDS:5432.
-- EventBridge: diário 08:00 SP; segunda 08:00 SP.
-- IAM SES + S3 + secrets.
+- Bucket S3; EventBridge: diário 08:00 SP; segunda 08:00 SP; IAM SES + S3 + secrets.
+- JDBC: env `FEEDBACKS_DB_SECRET_NAME` → `DB_*` + `FEEDBACKS_REPORT_JDBC_ENABLED=true`.
+- VPC opcional: `FEEDBACKS_REPORT_VPC_ID` (+ `FEEDBACKS_REPORT_SG_ID`) para alvo AD-17;
+  omitido na demo (Lambda fora de VPC + RDS público).
+- Seed demo: `feedbacks/infra/scripts/seed-report-demo.sql` (avaliações nos últimos 7 dias SP).
 - Fora: ECS/ECR pipeline (FR-15); alterar SRP do alerta.
 
 ---

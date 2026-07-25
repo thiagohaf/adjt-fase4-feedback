@@ -27,10 +27,13 @@ aws lambda invoke \
 
 `periodo` inválido deve falhar (não entrega e-mail/PDF).
 
+Resposta esperada com RDS + seed: `"total"` > 0 (ex. semanal com 8 avaliações
+nos últimos 7 dias). Sem JDBC: `total=0` (SPEC-12.5).
+
 ## 3. Verificar e-mail HTML
 
-Caixa do `adminEmail` (SES sandbox): assunto `[Feedbacks] Relatório diario|semanal`,
-corpo HTML com tipo, período SP e agregados (zeros se janela vazia — SPEC-12.5).
+Caixa do `adminEmail` (SES sandbox; frequentemente **Spam**): assunto
+`[Feedbacks] Relatório diario|semanal`, corpo HTML com tipo, período SP e agregados.
 
 ## 4. Verificar PDF no S3
 
@@ -44,6 +47,15 @@ aws s3 ls s3://<RelatoriosBucketName>/relatorios/semanal/
 
 EventBridge rules `feedbacks-report-diario` / `feedbacks-report-semanal` —
 08:00 `America/Sao_Paulo` (= 11:00 UTC). Mesmo algoritmo de janela do invoke.
+
+## 6. Opcional — dados reais no RDS (demo)
+
+1. RDS Postgres público + secret `feedbacks/db` (ver `feedbacks/infra/README.md`).
+2. Flyway V1–V5 da API + [`scripts/seed-report-demo.sql`](../../infra/scripts/seed-report-demo.sql).
+3. Redeploy: `FEEDBACKS_DB_SECRET_NAME=feedbacks/db` (Lambda fora de VPC).
+4. Invoke `semanal` → logs `Read model window ... → N linhas` com N > 0;
+   e-mail/PDF com média e qty por urgência ≠ zero.
+5. **Teardown** RDS + secret após gravação.
 
 ## Postman
 
