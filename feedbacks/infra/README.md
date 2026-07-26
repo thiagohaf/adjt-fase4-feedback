@@ -1,4 +1,4 @@
-# Infra CDK (Java) — alerta (FR-10) + relatórios (FR-11/12/17)
+# Infra CDK (Java) — alerta (FR-10) + relatórios (FR-11/12/17) + API ECS (FR-13/14/15)
 
 IaC 100% **Java 17 + AWS CDK v2 (Maven)** — sem TypeScript/JavaScript no repositório.
 
@@ -8,8 +8,7 @@ IaC 100% **Java 17 + AWS CDK v2 (Maven)** — sem TypeScript/JavaScript no repos
 | --- | --- |
 | `FeedbacksAlertaNotificationStack` | SQS + DLQ → `lambda-notification` → SES |
 | `FeedbacksRelatorioStack` | EventBridge (diário/semanal) → `lambda-report` → SES HTML + PDF S3 |
-
-**Fora de escopo:** ECS/ECR/CI completo da API (FR-15).
+| `FeedbacksApiStack` | ECR + ECS Fargate (0.25 vCPU) + ALB + alarme CloudWatch 5XX |
 
 ## Pré-requisitos
 
@@ -40,10 +39,35 @@ export FEEDBACKS_DB_SECRET_NAME=feedbacks/db
 cdk deploy FeedbacksRelatorioStack
 ```
 
-**Teardown:** apagar instância RDS `feedbacks-demo`, SG `feedbacks-rds-demo`,
-subnet group `feedbacks-demo` e secret `feedbacks/db` após o vídeo.
+### API (ECS / FR-13–15)
 
-Sem secret DB → `FEEDBACKS_REPORT_JDBC_ENABLED=false` → agregados zerados (SPEC-12.5).
+1. Docker Desktop (ou daemon) para o asset `apps/api/Dockerfile`
+2. Secret `feedbacks/jwt` JSON: `{"jwtSecret":"<≥256 bits>"}`
+3. Secret `feedbacks/db` (mesmas chaves do relatório)
+4. Fila SQS de alerta (output `AlertQueueUrl` ou `FEEDBACKS_SQS_ALERT_QUEUE_URL`)
+
+```bash
+export CDK_DEFAULT_ACCOUNT=... CDK_DEFAULT_REGION=us-east-1
+export FEEDBACKS_DB_SECRET_NAME=feedbacks/db
+export FEEDBACKS_JWT_SECRET_NAME=feedbacks/jwt
+export FEEDBACKS_SQS_ALERT_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/.../feedbacks-avaliacao-alerta
+cdk deploy FeedbacksApiStack
+```
+
+Outputs: `ApiAlbDns`, `ApiHealthUrl`, `ApiAlarmName`, `ApiEcrRepositoryUri`.
+
+Health: `GET http://<ApiAlbDns>/api/v1/health` e probe ALB `/q/health/ready`.
+
+Pipeline: `.github/workflows/ci-api.yml` (verify) + `deploy-api.yml` (ECR push +
+`cdk deploy`, `workflow_dispatch`).
+
+**Teardown API:** `aws ecs update-service --cluster feedbacks-api --service feedbacks-api --desired-count 0`
+ou `cdk destroy FeedbacksApiStack`.
+
+**Teardown RDS:** apagar instância RDS `feedbacks-demo`, SG `feedbacks-rds-demo`,
+subnet group `feedbacks-demo` e secrets `feedbacks/db` / `feedbacks/jwt` após o vídeo.
+
+Sem secret DB no report → `FEEDBACKS_REPORT_JDBC_ENABLED=false` → agregados zerados (SPEC-12.5).
 
 ## Synth
 
@@ -56,7 +80,7 @@ mvn -q compile exec:java
 ## Deploy
 
 ```bash
-cdk deploy FeedbacksAlertaNotificationStack FeedbacksRelatorioStack
+cdk deploy FeedbacksAlertaNotificationStack FeedbacksRelatorioStack FeedbacksApiStack
 ```
 
 ### Invoke manual (AD-10 / UJ-4)
@@ -83,3 +107,5 @@ diário todos os dias; semanal às segundas — payload fixo `periodo=diario|sem
 ```text
 FEEDBACKS_SQS_ALERT_QUEUE_URL=<AlertQueueUrl do output>
 ```
+
+Roteiro de vídeo: [`docs/ROTEIRO-DEMO.md`](../../docs/ROTEIRO-DEMO.md).
