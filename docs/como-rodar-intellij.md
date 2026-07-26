@@ -117,10 +117,14 @@ Authorization: Bearer <accessToken>
 
 ## Postman
 
-1. Importe `docs/postman/feedbacks-api.postman_collection.json`  
-   (Postman → **Import** → selecione o arquivo).
-2. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o token é salvo sozinho.
-3. Depois chame as rotas protegidas (Cursos, Avaliações, etc.).
+1. Importe `docs/postman/feedbacks-api.postman_collection.json` e o environment  
+   `feedbacks-api.local.postman_environment.json` (Postman → **Import**).
+2. Selecione o environment **Feedbacks API — Local**.
+3. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o token é salvo sozinho.
+4. Depois chame as rotas protegidas (Cursos, Avaliações, etc.).
+
+Para a demo no ALB, importe também `feedbacks-api.aws-alb.postman_environment.json`
+e selecione **Feedbacks API — AWS ALB (demo)** (ver `docs/ROTEIRO-DEMO.md`).
 
 ---
 

@@ -14,7 +14,7 @@ Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-t
 
 - [ ] SES: identidade verificada; checar **Spam** no Gmail
 - [ ] Seeds de usuários (Flyway) + seed relatório (`seed-report-demo.sql`) se UJ-4
-- [ ] Postman: `docs/postman/feedbacks-api.postman_collection.json`
+- [ ] Postman: collection + env AWS ALB em `docs/postman/` (selecionar environment **AWS ALB**)
 - [ ] Um PDF de relatório no S3 (invoke semanal)
 - [ ] Alarme `feedbacks-api-target-5xx` visível no CloudWatch
 - [ ] CI verde (`ci(api)` e/ou `deploy(api)`) ou `cdk deploy` recente
