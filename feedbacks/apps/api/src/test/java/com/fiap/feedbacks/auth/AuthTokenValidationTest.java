@@ -98,7 +98,8 @@ class AuthTokenValidationTest {
                 .when()
                 .get("/api/v1/health")
                 .then()
-                .statusCode(200);
+                .statusCode(200)
+                .body("status", equalTo("UP"));
     }
 
     @Test

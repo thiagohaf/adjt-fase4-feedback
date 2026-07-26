@@ -7,7 +7,7 @@ import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.cxapi.CloudAssembly;
 
 /**
- * Entry point CDK Java — alerta (FR-10) + relatório (FR-11/12/17).
+ * Entry point CDK Java — alerta (FR-10) + relatório (FR-11/12/17) + API ECS (FR-13/14/15).
  */
 public final class FeedbacksAlertaApp {
 
@@ -45,6 +45,15 @@ public final class FeedbacksAlertaApp {
                         .env(env)
                         .description(
                                 "FR-11/12/17 — EventBridge + lambda-report (VPC) + S3 + SES; sem ECS/ECR")
+                        .build());
+
+        new ApiStack(
+                app,
+                "FeedbacksApiStack",
+                StackProps.builder()
+                        .env(env)
+                        .description(
+                                "FR-13/14/15 — ECS Fargate + ALB + ECR + alarme CloudWatch (demo AD-17)")
                         .build());
 
         CloudAssembly assembly = app.synth();
