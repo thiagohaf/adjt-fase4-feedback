@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-feedbacks-api-01",
-    "name": "Feedbacks API — Auth + Catálogo",
-    "description": "Collection da API Quarkus (feedbacks-api).\n\n**Como usar**\n1. Suba a API em `http://localhost:8080` (profile `local`).\n2. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o script salva `accessToken` automaticamente.\n3. Como Admin: **Criar curso** → salva `cursoId`; **Criar aula** → salva `aulaId` (UJ-2).\n4. As rotas protegidas usam `Authorization: Bearer {{accessToken}}`.\n\n**Usuários seed (Flyway V2)**\n- Estudante: `estudante@demo.fiap` / `senha123`\n- Admin: `admin@demo.fiap` / `admin123`\n\n---\n**UJ-3 / FR-10 — evidência de alerta (módulo 05)**\nApós POST Avaliação com nota ≤ 4 (Urgência ALTA):\n1. API publica evento AD-5 (Kafka no-op em `%local`; SQS real em `%aws` se `FEEDBACKS_SQS_ALERT_QUEUE_URL` estiver setada).\n2. Em AWS: Lambda `feedbacks-lambda-notification` consome a fila e envia e-mail SES ao `adminEmail`.\n3. Evidência na demo: caixa de e-mail do Administrador **ou** logs CloudWatch da Lambda / mensagem na fila/DLQ (SES sandbox exige identidade verificada).\n",
+    "name": "Feedbacks API",
+    "description": "Collection da API Quarkus (feedbacks-api) — auth, catálogo, inscrição, avaliação, health (FR-13).\n\n**Ambientes**\n1. Importe também os environments em `docs/postman/`:\n   - `feedbacks-api.local.postman_environment.json` → `http://localhost:8080`\n   - `feedbacks-api.aws-alb.postman_environment.json` → ALB da demo (FR-14/16)\n2. Selecione o environment ativo no Postman (canto superior direito).\n3. Sem environment: o `baseUrl` da collection defaulta para localhost.\n4. Após redeploy do ALB, atualize `baseUrl` no env AWS (output CDK `ApiAlbDns`) ou em `docs/ROTEIRO-DEMO.md`.\n\n**Como usar**\n1. Rode **Auth → Login (Estudante)** ou **Login (Admin)** — o script salva `accessToken`.\n2. Como Admin: **Criar curso** → salva `cursoId`; **Criar aula** → salva `aulaId` (UJ-2).\n3. Rotas protegidas usam `Authorization: Bearer {{accessToken}}`.\n\n**Health (FR-13 / cena 3 do roteiro)**\n- `GET /api/v1/health` → `{\"status\":\"UP\",\"database\":\"UP\"}` (público; UP só com DB ok).\n- `GET /q/health/ready` → readiness SmallRye (health check do ALB).\n- `GET /q/health` → agregação SmallRye (liveness + readiness).\n\n**Usuários seed (Flyway V2)**\n- Estudante: `estudante@demo.fiap` / `senha123`\n- Admin: `admin@demo.fiap` / `admin123`\n\n---\n**UJ-3 / FR-10 — evidência de alerta**\nApós POST Avaliação com nota ≤ 4 (Urgência ALTA):\n1. API publica evento AD-5 (Kafka no-op em `%local`; SQS real em `%aws` se `FEEDBACKS_SQS_ALERT_QUEUE_URL` estiver setada).\n2. Em AWS: Lambda `feedbacks-lambda-notification` consome a fila e envia e-mail SES ao `adminEmail`.\n3. Evidência na demo: caixa do Administrador **ou** logs CloudWatch / fila/DLQ (SES sandbox exige identidade verificada).\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -50,7 +50,24 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "health"]
             },
-            "description": "Health público do contrato (AD-9). Sem token."
+            "description": "Health público (AD-9 / FR-13). Sem token. Esperado com DB ok: `{\"status\":\"UP\",\"database\":\"UP\"}` (HTTP 200). Com DB down: status/database DOWN e HTTP 503."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /q/health/ready (ALB)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/q/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["q", "health", "ready"]
+            },
+            "description": "Readiness SmallRye (FR-13). Path usado pelo health check do ALB (ApiStack). Sem token."
           },
           "response": []
         },
