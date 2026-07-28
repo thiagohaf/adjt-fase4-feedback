@@ -6,9 +6,12 @@ Tempo-alvo: **8–15 minutos**. Ordem sugerida para não se perder na gravação
 `feedbacks-report-*` ENABLED; stack `FeedbacksApiStack` deployed (ALB);
 SES sandbox com e-mail verificado; secret `feedbacks/jwt` + `feedbacks/db`.
 
-**Reabilitar após pausa:** GitHub Actions → workflow **`resume(demo)`** → Run workflow
-(bootstrap CDK, start RDS, redeploy API, enable crons, seed, smoke health).
-Atualize o `baseUrl` do Postman com o `ApiAlbDns` do summary do job.
+**Ciclo de vida (Actions → Run workflow):**
+- **`deploy(all)`** — sobe/retoma tudo (RDS + 3 stacks + crons + seed + smoke)
+- **`pause(demo)`** — corta custo horário (crons off, destroy API/ALB, stop RDS)
+- **`destroy(all)`** — apaga stacks (e opcionalmente RDS/secrets); confirme com `destroy`
+
+Atualize o `baseUrl` do Postman com o `ApiAlbDns` do summary do `deploy(all)`.
 
 ALB demo (atualizar se redeploy — output `ApiAlbDns`):  
 `http://Feedba-ApiSe-hGCfix1THZyT-1147675187.us-east-1.elb.amazonaws.com`  
@@ -21,7 +24,7 @@ Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-t
 - [ ] Postman: collection + env AWS ALB em `docs/postman/` (selecionar environment **AWS ALB**)
 - [ ] Um PDF de relatório no S3 (invoke semanal)
 - [ ] Alarme `feedbacks-api-target-5xx` visível no CloudWatch
-- [ ] CI verde (`ci(api)` / `deploy(api)` / `resume(demo)`) ou `cdk deploy` recente
+- [ ] CI verde (`ci(api)` / `deploy(all)`) ou `cdk deploy` recente
 - [ ] Escalas mínimas (ECS desired=1; RDS micro)
 
 ## Cenas
@@ -39,8 +42,8 @@ Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-t
 | 9 | Relatórios | Invoke diário/semanal (CLI/console) — ver [UJ4-ROTEIRO](../feedbacks/apps/report/UJ4-ROTEIRO.md) | FR-11, FR-12, FR-17 |
 | 10 | PDF no S3 | Objeto `relatorios/.../*.pdf` no console | FR-12 |
 | 11 | Métricas | CloudWatch ALB: RequestCount, 5XX, TargetResponseTime; alarme `feedbacks-api-target-5xx` | FR-14 |
-| 12 | Deploy | Actions `ci(api)` / `deploy(api)` verde **ou** `cdk deploy FeedbacksApiStack` + task RUNNING | FR-15 |
-| 13 | Encerramento | Custo, teardown (ECS desired=0 / destroy, RDS stop, crons DISABLED), link do repo | SM-3, SM-4 |
+| 12 | Deploy | Actions `ci(api)` / `deploy(all)` verde **ou** `cdk deploy` + task RUNNING | FR-15 |
+| 13 | Encerramento | Custo: Actions `pause(demo)` ou `destroy(all)`; link do repo | SM-3, SM-4 |
 
 ## Comandos úteis
 
@@ -53,11 +56,8 @@ aws lambda invoke --function-name feedbacks-lambda-report \
   --cli-binary-format raw-in-base64-out \
   --payload '{"periodo":"semanal"}' /tmp/report-semanal.json
 
-# Pausar custo após gravação
-aws ecs update-service --cluster feedbacks-api --service feedbacks-api --desired-count 0
-aws rds stop-db-instance --db-instance-identifier feedbacks-demo
-aws events disable-rule --name feedbacks-report-diario
-aws events disable-rule --name feedbacks-report-semanal
+# Pausar custo após gravação (preferir Actions → pause(demo))
+feedbacks/infra/scripts/demo-lifecycle.sh pause
 ```
 
 ## Referências

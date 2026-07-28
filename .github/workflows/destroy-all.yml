@@ -1,0 +1,79 @@
+# Apaga os recursos CDK da demo (e opcionalmente RDS/secrets).
+# Irreversível para stacks; RDS sem snapshot final se delete_rds=true.
+#
+# Disparo: Actions → destroy(all) → confirme digitando destroy → Run workflow
+#
+# Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+name: destroy(all)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Digite destroy para confirmar
+        type: string
+        required: true
+      delete_rds:
+        description: Apagar também o RDS feedbacks-demo (sem snapshot)
+        type: boolean
+        default: true
+      delete_secrets:
+        description: Apagar secrets feedbacks/db, jwt, adminEmail
+        type: boolean
+        default: false
+
+concurrency:
+  group: demo-lifecycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  destroy:
+    name: destroy stacks (+ RDS/secrets opcional)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Confirm destroy
+        run: |
+          if [ "${{ inputs.confirm }}" != "destroy" ]; then
+            echo "::error::Confirmação inválida. Digite exatamente: destroy"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Destroy all
+        run: |
+          chmod +x feedbacks/infra/scripts/demo-lifecycle.sh
+          feedbacks/infra/scripts/demo-lifecycle.sh destroy-all \
+            "${{ inputs.delete_rds }}" \
+            "${{ inputs.delete_secrets }}"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## destroy(all)"
+            echo ""
+            echo "| Opção | Valor |"
+            echo "|-------|-------|"
+            echo "| delete_rds | \`${{ inputs.delete_rds }}\` |"
+            echo "| delete_secrets | \`${{ inputs.delete_secrets }}\` |"
+            echo ""
+            echo "Stacks Feedbacks* removidas. Para subir de novo: **deploy(all)**"
+            echo "(RDS precisa existir / ser recriado se foi apagado)."
+          } >> "$GITHUB_STEP_SUMMARY"
