@@ -6,6 +6,10 @@ Tempo-alvo: **8–15 minutos**. Ordem sugerida para não se perder na gravação
 `feedbacks-report-*` ENABLED; stack `FeedbacksApiStack` deployed (ALB);
 SES sandbox com e-mail verificado; secret `feedbacks/jwt` + `feedbacks/db`.
 
+**Reabilitar após pausa:** GitHub Actions → workflow **`resume(demo)`** → Run workflow
+(bootstrap CDK, start RDS, redeploy API, enable crons, seed, smoke health).
+Atualize o `baseUrl` do Postman com o `ApiAlbDns` do summary do job.
+
 ALB demo (atualizar se redeploy — output `ApiAlbDns`):  
 `http://Feedba-ApiSe-hGCfix1THZyT-1147675187.us-east-1.elb.amazonaws.com`  
 Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-target-5xx`
@@ -17,7 +21,7 @@ Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-t
 - [ ] Postman: collection + env AWS ALB em `docs/postman/` (selecionar environment **AWS ALB**)
 - [ ] Um PDF de relatório no S3 (invoke semanal)
 - [ ] Alarme `feedbacks-api-target-5xx` visível no CloudWatch
-- [ ] CI verde (`ci(api)` e/ou `deploy(api)`) ou `cdk deploy` recente
+- [ ] CI verde (`ci(api)` / `deploy(api)` / `resume(demo)`) ou `cdk deploy` recente
 - [ ] Escalas mínimas (ECS desired=1; RDS micro)
 
 ## Cenas

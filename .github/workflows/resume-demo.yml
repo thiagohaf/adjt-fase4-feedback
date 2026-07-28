@@ -1,0 +1,243 @@
+# Reabilita o ambiente de demo após pausa (RDS stop, ALB/ECS removidos, crons DISABLED).
+# Disparo: Actions → resume(demo) → Run workflow.
+#
+# Secrets obrigatórios:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ACCOUNT_ID
+# Opcional:
+#   FEEDBACKS_SQS_ALERT_QUEUE_URL (default hardcoded em ApiStack para a fila demo)
+#
+# IAM mínimo da key: STS; RDS StartDBInstance + Describe;
+# EventBridge EnableRule; CloudFormation + CDK deploy (bootstrap roles);
+# ECR push; ECS/ELB create; Secrets Manager GetSecretValue (feedbacks/db);
+# EC2 describe (CDK VPC lookup se necessário).
+name: resume(demo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_seed:
+        description: Aplicar seed-report-demo.sql no RDS
+        type: boolean
+        default: true
+      enable_crons:
+        description: Reabilitar EventBridge feedbacks-report-*
+        type: boolean
+        default: true
+
+concurrency:
+  group: resume-demo-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: feedbacks-api
+  RDS_INSTANCE: feedbacks-demo
+  API_STACK: FeedbacksApiStack
+  DB_SECRET_NAME: feedbacks/db
+
+jobs:
+  resume:
+    name: bootstrap + RDS + API + crons + seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: |
+            feedbacks/apps/api/pom.xml
+            feedbacks/infra/pom.xml
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk@2
+
+      - name: CDK bootstrap
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        run: |
+          cdk bootstrap "aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }}"
+
+      - name: Start RDS and wait available
+        run: |
+          set -euo pipefail
+          STATUS=$(aws rds describe-db-instances \
+            --db-instance-identifier "$RDS_INSTANCE" \
+            --query 'DBInstances[0].DBInstanceStatus' --output text)
+          echo "RDS status: $STATUS"
+          case "$STATUS" in
+            available)
+              echo "RDS já available."
+              ;;
+            starting)
+              echo "RDS já em starting — aguardando available..."
+              ;;
+            stopping)
+              echo "Aguardando RDS stopped antes de start..."
+              aws rds wait db-instance-stopped --db-instance-identifier "$RDS_INSTANCE"
+              aws rds start-db-instance --db-instance-identifier "$RDS_INSTANCE"
+              ;;
+            stopped)
+              aws rds start-db-instance --db-instance-identifier "$RDS_INSTANCE"
+              ;;
+            *)
+              echo "Status inesperado ($STATUS) — tentando wait available mesmo assim."
+              ;;
+          esac
+          aws rds wait db-instance-available --db-instance-identifier "$RDS_INSTANCE"
+          aws rds describe-db-instances --db-instance-identifier "$RDS_INSTANCE" \
+            --query 'DBInstances[0].{Status:DBInstanceStatus,Endpoint:Endpoint.Address}' --output table
+
+      - name: Delete drifted FeedbacksApiStack if present
+        run: |
+          set -euo pipefail
+          STATUS=$(aws cloudformation describe-stacks --stack-name "$API_STACK" \
+            --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "ABSENT")
+          echo "Stack status: $STATUS"
+          case "$STATUS" in
+            ABSENT|DELETE_COMPLETE)
+              echo "Stack ausente — seguirá para deploy limpo."
+              ;;
+            DELETE_IN_PROGRESS)
+              echo "Delete já em andamento — aguardando..."
+              aws cloudformation wait stack-delete-complete --stack-name "$API_STACK"
+              ;;
+            *)
+              aws cloudformation delete-stack --stack-name "$API_STACK"
+              echo "Aguardando delete de $API_STACK..."
+              aws cloudformation wait stack-delete-complete --stack-name "$API_STACK"
+              echo "Stack removida."
+              ;;
+          esac
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" \
+            || aws ecr create-repository --repository-name "$ECR_REPOSITORY"
+
+      - name: Build and push API image
+        working-directory: feedbacks/apps/api
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+          docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+          echo "Pushed $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: CDK deploy FeedbacksApiStack
+        working-directory: feedbacks/infra
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          FEEDBACKS_DB_SECRET_NAME: feedbacks/db
+          FEEDBACKS_JWT_SECRET_NAME: feedbacks/jwt
+          FEEDBACKS_SQS_ALERT_QUEUE_URL: ${{ secrets.FEEDBACKS_SQS_ALERT_QUEUE_URL }}
+        run: |
+          mvn -B -q compile
+          cdk deploy FeedbacksApiStack --require-approval never
+
+      - name: Enable EventBridge report crons
+        if: ${{ inputs.enable_crons }}
+        run: |
+          aws events enable-rule --name feedbacks-report-diario
+          aws events enable-rule --name feedbacks-report-semanal
+          aws events list-rules --name-prefix feedbacks-report \
+            --query 'Rules[].{Name:Name,State:State}' --output table
+
+      - name: Seed report demo SQL
+        if: ${{ inputs.run_seed }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          SECRET=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_NAME" \
+            --query SecretString --output text)
+          eval "$(SECRET="$SECRET" python3 - <<'PY'
+          import json, os, shlex
+          s = json.loads(os.environ["SECRET"])
+          url = s["dbUrl"]
+          if not url.startswith("jdbc:postgresql://"):
+              raise SystemExit(f"dbUrl inesperado: {url}")
+          rest = url[len("jdbc:postgresql://"):]
+          hostport, db = rest.rsplit("/", 1)
+          host, port = hostport.split(":")
+          print(f"export PGHOST={shlex.quote(host)}")
+          print(f"export PGPORT={shlex.quote(port)}")
+          print(f"export PGDATABASE={shlex.quote(db)}")
+          print(f"export PGUSER={shlex.quote(s['dbUser'])}")
+          print(f"export PGPASSWORD={shlex.quote(s['dbPassword'])}")
+          PY
+          )"
+          unset SECRET
+          export PGSSLMODE=require
+          psql -v ON_ERROR_STOP=1 -f feedbacks/infra/scripts/seed-report-demo.sql
+          echo "Seed aplicado."
+
+      - name: Smoke health via ALB
+        id: smoke
+        run: |
+          set -euo pipefail
+          ALB_DNS=$(aws cloudformation describe-stacks --stack-name "$API_STACK" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiAlbDns'].OutputValue | [0]" --output text)
+          HEALTH_URL=$(aws cloudformation describe-stacks --stack-name "$API_STACK" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiHealthUrl'].OutputValue | [0]" --output text)
+          echo "ALB_DNS=$ALB_DNS"
+          echo "HEALTH_URL=$HEALTH_URL"
+          echo "alb_dns=$ALB_DNS" >> "$GITHUB_OUTPUT"
+          echo "health_url=$HEALTH_URL" >> "$GITHUB_OUTPUT"
+          for i in $(seq 1 36); do
+            CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" "$HEALTH_URL" || echo "000")
+            BODY=$(cat /tmp/health.json 2>/dev/null || true)
+            echo "try $i: HTTP $CODE $BODY"
+            if [ "$CODE" = "200" ] && echo "$BODY" | grep -q '"status":"UP"'; then
+              echo "Health OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Health não ficou UP a tempo"
+          exit 1
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## resume(demo)"
+            echo ""
+            echo "| Item | Valor |"
+            echo "|------|-------|"
+            echo "| ApiAlbDns | \`${{ steps.smoke.outputs.alb_dns }}\` |"
+            echo "| ApiHealthUrl | \`${{ steps.smoke.outputs.health_url }}\` |"
+            echo "| Seed | \`${{ inputs.run_seed }}\` |"
+            echo "| Crons | \`${{ inputs.enable_crons }}\` |"
+            echo ""
+            echo "### Postman"
+            echo "1. Importe \`docs/postman/feedbacks-api.postman_collection.json\`"
+            echo "2. Env **AWS ALB** — atualize \`baseUrl\` para \`http://${{ steps.smoke.outputs.alb_dns }}\`"
+            echo "3. Health → \`GET /api/v1/health\`"
+          } >> "$GITHUB_STEP_SUMMARY"
