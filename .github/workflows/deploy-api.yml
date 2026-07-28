@@ -36,6 +36,8 @@ jobs:
           cache: maven
           cache-dependency-path: |
             feedbacks/apps/api/pom.xml
+            feedbacks/apps/notification/pom.xml
+            feedbacks/apps/report/pom.xml
             feedbacks/infra/pom.xml
 
       - name: Configure AWS credentials
@@ -64,6 +66,13 @@ jobs:
           docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker push "$REGISTRY/$ECR_REPOSITORY:latest"
           echo "Pushed $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Package Lambda zips (CDK synth instancia todas as stacks)
+        run: |
+          mvn -B -q -f feedbacks/apps/notification/pom.xml package
+          mvn -B -q -f feedbacks/apps/report/pom.xml package
+          test -f feedbacks/apps/notification/target/function.zip
+          test -f feedbacks/apps/report/target/function.zip
 
       - name: CDK deploy FeedbacksApiStack
         working-directory: feedbacks/infra
