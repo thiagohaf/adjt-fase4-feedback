@@ -59,7 +59,9 @@ Outputs: `ApiAlbDns`, `ApiHealthUrl`, `ApiAlarmName`, `ApiEcrRepositoryUri`.
 Health: `GET http://<ApiAlbDns>/api/v1/health` e probe ALB `/q/health/ready`.
 
 Pipeline: `.github/workflows/ci-api.yml` (verify) + `deploy-api.yml` (ECR push +
-`cdk deploy`, `workflow_dispatch`).
+`cdk deploy`, `workflow_dispatch`) + **`resume-demo.yml`** (`resume(demo)` —
+reabilita demo pausada: bootstrap, start RDS, delete/redeploy `FeedbacksApiStack`,
+enable crons, seed, smoke health).
 
 **Teardown API:** `aws ecs update-service --cluster feedbacks-api --service feedbacks-api --desired-count 0`
 ou `cdk destroy FeedbacksApiStack`.
