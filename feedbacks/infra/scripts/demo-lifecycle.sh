@@ -41,11 +41,38 @@ wait_stack_gone() {
   echo "Stack $name removida."
 }
 
+rds_status() {
+  aws rds describe-db-instances \
+    --db-instance-identifier "$RDS_INSTANCE" \
+    --query 'DBInstances[0].DBInstanceStatus' --output text 2>/dev/null || echo "ABSENT"
+}
+
+# AWS CLI não tem waiter db-instance-stopped — poll manual.
+wait_rds_status() {
+  local want="$1"
+  local max_attempts="${2:-60}"
+  local attempt=1
+  local status
+  while [ "$attempt" -le "$max_attempts" ]; do
+    status=$(rds_status)
+    echo "RDS wait ($attempt/$max_attempts): $status (alvo=$want)"
+    if [ "$status" = "$want" ]; then
+      return 0
+    fi
+    if [ "$status" = "ABSENT" ]; then
+      echo "::error::RDS $RDS_INSTANCE sumiu durante wait ($want)."
+      return 1
+    fi
+    sleep 15
+    attempt=$((attempt + 1))
+  done
+  echo "::error::Timeout aguardando RDS=$want (último=$status)"
+  return 1
+}
+
 ensure_rds_available() {
   local status
-  status=$(aws rds describe-db-instances \
-    --db-instance-identifier "$RDS_INSTANCE" \
-    --query 'DBInstances[0].DBInstanceStatus' --output text 2>/dev/null || echo "ABSENT")
+  status=$(rds_status)
   echo "RDS status: $status"
   case "$status" in
     ABSENT)
@@ -60,7 +87,7 @@ ensure_rds_available() {
       ;;
     stopping)
       echo "Aguardando RDS stopped antes de start..."
-      aws rds wait db-instance-stopped --db-instance-identifier "$RDS_INSTANCE"
+      wait_rds_status stopped
       aws rds start-db-instance --db-instance-identifier "$RDS_INSTANCE"
       ;;
     stopped)
@@ -77,9 +104,7 @@ ensure_rds_available() {
 
 stop_rds() {
   local status
-  status=$(aws rds describe-db-instances \
-    --db-instance-identifier "$RDS_INSTANCE" \
-    --query 'DBInstances[0].DBInstanceStatus' --output text 2>/dev/null || echo "ABSENT")
+  status=$(rds_status)
   echo "RDS status: $status"
   case "$status" in
     ABSENT)
@@ -101,9 +126,7 @@ stop_rds() {
 
 delete_rds() {
   local status
-  status=$(aws rds describe-db-instances \
-    --db-instance-identifier "$RDS_INSTANCE" \
-    --query 'DBInstances[0].DBInstanceStatus' --output text 2>/dev/null || echo "ABSENT")
+  status=$(rds_status)
   if [ "$status" = "ABSENT" ]; then
     echo "RDS ausente."
     return 0
