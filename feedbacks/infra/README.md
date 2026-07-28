@@ -58,16 +58,19 @@ Outputs: `ApiAlbDns`, `ApiHealthUrl`, `ApiAlarmName`, `ApiEcrRepositoryUri`.
 
 Health: `GET http://<ApiAlbDns>/api/v1/health` e probe ALB `/q/health/ready`.
 
-Pipeline: `.github/workflows/ci-api.yml` (verify) + `deploy-api.yml` (ECR push +
-`cdk deploy`, `workflow_dispatch`) + **`resume-demo.yml`** (`resume(demo)` —
-reabilita demo pausada: bootstrap, start RDS, delete/redeploy `FeedbacksApiStack`,
-enable crons, seed, smoke health).
+Pipeline (GitHub Actions → **Run workflow**):
 
-**Teardown API:** `aws ecs update-service --cluster feedbacks-api --service feedbacks-api --desired-count 0`
-ou `cdk destroy FeedbacksApiStack`.
+| Workflow | Arquivo | Função |
+| --- | --- | --- |
+| `test(api)` | `test-api.yml` | `mvn verify` + JaCoCo ≥ 90% |
+| **`deploy(all)`** | `deploy-all.yml` | sobe/retoma tudo (RDS + 3 stacks + crons + seed + smoke) |
+| **`pause(demo)`** | `pause-demo.yml` | corta custo (crons off, destroy API/ALB, stop RDS) |
+| **`destroy(all)`** | `destroy-all.yml` | apaga stacks (+ RDS/secrets opcional); confirme `destroy` |
 
-**Teardown RDS:** apagar instância RDS `feedbacks-demo`, SG `feedbacks-rds-demo`,
-subnet group `feedbacks-demo` e secrets `feedbacks/db` / `feedbacks/jwt` após o vídeo.
+Script compartilhado: [`scripts/demo-lifecycle.sh`](scripts/demo-lifecycle.sh).
+
+**Pausa local:** `./scripts/demo-lifecycle.sh pause`  
+**Destroy local:** `./scripts/demo-lifecycle.sh destroy-all true false`
 
 Sem secret DB no report → `FEEDBACKS_REPORT_JDBC_ENABLED=false` → agregados zerados (SPEC-12.5).
 

@@ -1,0 +1,58 @@
+# Pausa recursos com custo horário (reversível via deploy(all)).
+# - EventBridge feedbacks-report-* → DISABLED
+# - FeedbacksApiStack (ALB/ECS) → destroy
+# - RDS feedbacks-demo → stop
+# Mantém Alerta/Relatório (Lambda/SQS/S3 ~custo zero) e secrets.
+#
+# Disparo: Actions → pause(demo) → Run workflow
+#
+# Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+name: pause(demo)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: demo-lifecycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  pause:
+    name: crons off + destroy API + stop RDS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Pause demo
+        run: |
+          chmod +x feedbacks/infra/scripts/demo-lifecycle.sh
+          feedbacks/infra/scripts/demo-lifecycle.sh pause
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## pause(demo)"
+            echo ""
+            echo "- EventBridge report crons: DISABLED"
+            echo "- FeedbacksApiStack: removida (sem ALB)"
+            echo "- RDS feedbacks-demo: stop solicitado"
+            echo ""
+            echo "Para religar: Actions → **deploy(all)** → Run workflow"
+          } >> "$GITHUB_STEP_SUMMARY"

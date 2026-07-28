@@ -1,6 +1,6 @@
 # FR-15 parcial / AD-14 — build + testes + gate JaCoCo ≥ 90% (quarkus-jacoco).
-# Deploy (ECR / CDK) fica fora deste workflow.
-name: ci(api)
+# Deploy / pause / destroy ficam nos workflows de ciclo de vida da demo.
+name: test(api)
 
 on:
   workflow_dispatch:
@@ -8,15 +8,15 @@ on:
     branches: [develop]
     paths:
       - 'feedbacks/apps/api/**'
-      - '.github/workflows/ci-api.yml'
+      - '.github/workflows/test-api.yml'
   pull_request:
     branches: [develop]
     paths:
       - 'feedbacks/apps/api/**'
-      - '.github/workflows/ci-api.yml'
+      - '.github/workflows/test-api.yml'
 
 concurrency:
-  group: ci-api-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: test-api-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
