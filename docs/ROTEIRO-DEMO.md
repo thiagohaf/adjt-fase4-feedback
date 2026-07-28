@@ -24,7 +24,7 @@ Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-t
 - [ ] Postman: collection + env AWS ALB em `docs/postman/` (selecionar environment **AWS ALB**)
 - [ ] Um PDF de relatório no S3 (invoke semanal)
 - [ ] Alarme `feedbacks-api-target-5xx` visível no CloudWatch
-- [ ] CI verde (`ci(api)` / `deploy(all)`) ou `cdk deploy` recente
+- [ ] CI verde (`test(api)` / `deploy(all)`) ou `cdk deploy` recente
 - [ ] Escalas mínimas (ECS desired=1; RDS micro)
 
 ## Cenas
@@ -42,7 +42,7 @@ Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-t
 | 9 | Relatórios | Invoke diário/semanal (CLI/console) — ver [UJ4-ROTEIRO](../feedbacks/apps/report/UJ4-ROTEIRO.md) | FR-11, FR-12, FR-17 |
 | 10 | PDF no S3 | Objeto `relatorios/.../*.pdf` no console | FR-12 |
 | 11 | Métricas | CloudWatch ALB: RequestCount, 5XX, TargetResponseTime; alarme `feedbacks-api-target-5xx` | FR-14 |
-| 12 | Deploy | Actions `ci(api)` / `deploy(all)` verde **ou** `cdk deploy` + task RUNNING | FR-15 |
+| 12 | Deploy | Actions `test(api)` / `deploy(all)` verde **ou** `cdk deploy` + task RUNNING | FR-15 |
 | 13 | Encerramento | Custo: Actions `pause(demo)` ou `destroy(all)`; link do repo | SM-3, SM-4 |
 
 ## Comandos úteis
