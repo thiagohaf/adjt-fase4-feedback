@@ -7,7 +7,7 @@ Tempo-alvo: **8–15 minutos**. Ordem sugerida para não se perder na gravação
 SES sandbox com e-mail verificado; secret `feedbacks/jwt` + `feedbacks/db`.
 
 **Ciclo de vida (Actions → Run workflow):**
-- **`deploy(all)`** — sobe/retoma tudo (RDS + 3 stacks + crons + seed + smoke)
+- **`deploy(all)`** — sobe/retoma tudo (recria RDS+secrets se destroy apagou; 3 stacks + crons + seed + smoke)
 - **`pause(demo)`** — corta custo horário (crons off, destroy API/ALB, stop RDS)
 - **`destroy(all)`** — apaga stacks (e opcionalmente RDS/secrets); confirme com `destroy`
 

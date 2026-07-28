@@ -63,7 +63,7 @@ Pipeline (GitHub Actions → **Run workflow**):
 | Workflow | Arquivo | Função |
 | --- | --- | --- |
 | `test(api)` | `test-api.yml` | `mvn verify` + JaCoCo ≥ 90% |
-| **`deploy(all)`** | `deploy-all.yml` | sobe/retoma tudo (RDS + 3 stacks + crons + seed + smoke) |
+| **`deploy(all)`** | `deploy-all.yml` | sobe/retoma tudo; **recria RDS+secrets** se destroy apagou |
 | **`pause(demo)`** | `pause-demo.yml` | corta custo (crons off, destroy API/ALB, stop RDS) |
 | **`destroy(all)`** | `destroy-all.yml` | apaga stacks (+ RDS/secrets opcional); confirme `destroy` |
 

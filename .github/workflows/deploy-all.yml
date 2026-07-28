@@ -1,18 +1,20 @@
 # Sobe / retoma TODOS os recursos da demo.
 # - Se pausados (RDS stopped, ApiStack ausente, crons DISABLED): liga de novo.
+# - Se destroy apagou RDS/secrets: recria RDS público + secrets + 3 stacks.
 # - Se já existirem: atualiza via CDK deploy (desiredCount=1, crons ENABLED).
 #
 # Disparo: Actions → deploy(all) → Run workflow
 #
 # Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ACCOUNT_ID
-# Opcional: FEEDBACKS_SQS_ALERT_QUEUE_URL
+# Opcional: FEEDBACKS_SQS_ALERT_QUEUE_URL, FEEDBACKS_ADMIN_EMAIL
+#           (adminEmail cai no 1º e-mail verificado no SES se omitido)
 name: deploy(all)
 
 on:
   workflow_dispatch:
     inputs:
       run_seed:
-        description: Aplicar seed-report-demo.sql no RDS
+        description: Aplicar seed-report-demo.sql no RDS (após health/Flyway)
         type: boolean
         default: true
       enable_crons:
@@ -35,9 +37,9 @@ env:
 
 jobs:
   deploy:
-    name: RDS + 3 stacks + crons + smoke
+    name: RDS + secrets + 3 stacks + crons + smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -80,8 +82,13 @@ jobs:
         run: |
           cdk bootstrap "aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }}"
 
-      - name: Start RDS (se pausado) e aguardar available
+      - name: Provision/start RDS (recria se destroy apagou)
         run: feedbacks/infra/scripts/demo-lifecycle.sh ensure-rds-available
+
+      - name: Ensure Secrets Manager (db / jwt / adminEmail)
+        env:
+          FEEDBACKS_ADMIN_EMAIL: ${{ secrets.FEEDBACKS_ADMIN_EMAIL }}
+        run: feedbacks/infra/scripts/demo-lifecycle.sh ensure-secrets
 
       - name: Reparar ApiStack/ECR órfãos (evita conflito no deploy)
         run: feedbacks/infra/scripts/demo-lifecycle.sh repair-api-stack
@@ -109,6 +116,10 @@ jobs:
       - name: Enable EventBridge report crons
         if: ${{ inputs.enable_crons }}
         run: feedbacks/infra/scripts/demo-lifecycle.sh enable-crons
+
+      - name: Smoke health via ALB (Flyway sobe o schema)
+        id: smoke
+        run: feedbacks/infra/scripts/demo-lifecycle.sh smoke-health
 
       - name: Seed report demo SQL
         if: ${{ inputs.run_seed }}
@@ -138,10 +149,6 @@ jobs:
           export PGSSLMODE=require
           psql -v ON_ERROR_STOP=1 -f feedbacks/infra/scripts/seed-report-demo.sql
           echo "Seed aplicado."
-
-      - name: Smoke health via ALB
-        id: smoke
-        run: feedbacks/infra/scripts/demo-lifecycle.sh smoke-health
 
       - name: Job summary
         if: always()

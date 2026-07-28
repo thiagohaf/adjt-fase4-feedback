@@ -5,6 +5,11 @@ set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 RDS_INSTANCE="${RDS_INSTANCE:-feedbacks-demo}"
+RDS_DB_NAME="${RDS_DB_NAME:-feedbacks}"
+RDS_MASTER_USER="${RDS_MASTER_USER:-feedbacks_admin}"
+RDS_INSTANCE_CLASS="${RDS_INSTANCE_CLASS:-db.t4g.micro}"
+RDS_SG_NAME="${RDS_SG_NAME:-feedbacks-rds-demo}"
+RDS_SUBNET_GROUP="${RDS_SUBNET_GROUP:-feedbacks-demo}"
 ECR_REPOSITORY="${ECR_REPOSITORY:-feedbacks-api}"
 API_STACK="${API_STACK:-FeedbacksApiStack}"
 ALERTA_STACK="${ALERTA_STACK:-FeedbacksAlertaNotificationStack}"
@@ -13,6 +18,9 @@ ECS_CLUSTER="${ECS_CLUSTER:-feedbacks-api}"
 ECS_SERVICE="${ECS_SERVICE:-feedbacks-api}"
 CRON_DIARIO="${CRON_DIARIO:-feedbacks-report-diario}"
 CRON_SEMANAL="${CRON_SEMANAL:-feedbacks-report-semanal}"
+DB_SECRET_NAME="${DB_SECRET_NAME:-feedbacks/db}"
+JWT_SECRET_NAME="${JWT_SECRET_NAME:-feedbacks/jwt}"
+ADMIN_EMAIL_SECRET_NAME="${ADMIN_EMAIL_SECRET_NAME:-feedbacks/adminEmail}"
 
 export AWS_DEFAULT_REGION="$AWS_REGION"
 
@@ -70,24 +78,201 @@ wait_rds_status() {
   return 1
 }
 
+gen_alnum() {
+  local len="${1:-32}"
+  openssl rand -base64 $((len * 2)) | tr -dc 'A-Za-z0-9' | head -c "$len"
+}
+
+put_json_secret() {
+  local name="$1"
+  local json="$2"
+  if aws secretsmanager describe-secret --secret-id "$name" >/dev/null 2>&1; then
+    aws secretsmanager put-secret-value --secret-id "$name" --secret-string "$json" >/dev/null
+    echo "Secret $name atualizado."
+  else
+    aws secretsmanager create-secret --name "$name" --secret-string "$json" >/dev/null
+    echo "Secret $name criado."
+  fi
+}
+
+ensure_rds_network() {
+  local vpc_id sg_id subnet_ids
+  vpc_id=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true \
+    --query 'Vpcs[0].VpcId' --output text)
+  if [ -z "$vpc_id" ] || [ "$vpc_id" = "None" ]; then
+    echo "::error::VPC default não encontrada em $AWS_REGION"
+    exit 1
+  fi
+  echo "VPC default: $vpc_id"
+
+  sg_id=$(aws ec2 describe-security-groups \
+    --filters Name=group-name,Values="$RDS_SG_NAME" Name=vpc-id,Values="$vpc_id" \
+    --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+  if [ -z "$sg_id" ] || [ "$sg_id" = "None" ]; then
+    sg_id=$(aws ec2 create-security-group \
+      --group-name "$RDS_SG_NAME" \
+      --description "Demo feedbacks RDS public :5432" \
+      --vpc-id "$vpc_id" \
+      --query 'GroupId' --output text)
+    aws ec2 authorize-security-group-ingress \
+      --group-id "$sg_id" --protocol tcp --port 5432 --cidr 0.0.0.0/0 >/dev/null
+    echo "SG criado: $sg_id"
+  else
+    echo "SG existente: $sg_id"
+  fi
+  echo "$sg_id" > /tmp/feedbacks-rds-sg-id.txt
+
+  if aws rds describe-db-subnet-groups --db-subnet-group-name "$RDS_SUBNET_GROUP" >/dev/null 2>&1; then
+    echo "Subnet group $RDS_SUBNET_GROUP OK."
+  else
+    subnet_ids=$(aws ec2 describe-subnets \
+      --filters Name=vpc-id,Values="$vpc_id" Name=default-for-az,Values=true \
+      --query 'Subnets[].SubnetId' --output text)
+    if [ -z "$subnet_ids" ]; then
+      subnet_ids=$(aws ec2 describe-subnets --filters Name=vpc-id,Values="$vpc_id" \
+        --query 'Subnets[].SubnetId' --output text)
+    fi
+    # shellcheck disable=SC2086
+    aws rds create-db-subnet-group \
+      --db-subnet-group-name "$RDS_SUBNET_GROUP" \
+      --db-subnet-group-description "Demo feedbacks RDS public subnets" \
+      --subnet-ids $subnet_ids >/dev/null
+    echo "Subnet group $RDS_SUBNET_GROUP criado."
+  fi
+}
+
+create_rds_instance() {
+  local password sg_id
+  ensure_rds_network
+  sg_id=$(cat /tmp/feedbacks-rds-sg-id.txt)
+  password=$(gen_alnum 32)
+  echo "$password" > /tmp/feedbacks-rds-master-password.txt
+  chmod 600 /tmp/feedbacks-rds-master-password.txt
+
+  echo "Criando RDS $RDS_INSTANCE ($RDS_INSTANCE_CLASS / postgres)..."
+  aws rds create-db-instance \
+    --db-instance-identifier "$RDS_INSTANCE" \
+    --db-instance-class "$RDS_INSTANCE_CLASS" \
+    --engine postgres \
+    --engine-version 16.14 \
+    --master-username "$RDS_MASTER_USER" \
+    --master-user-password "$password" \
+    --allocated-storage 20 \
+    --storage-type gp3 \
+    --db-name "$RDS_DB_NAME" \
+    --db-subnet-group-name "$RDS_SUBNET_GROUP" \
+    --vpc-security-group-ids "$sg_id" \
+    --publicly-accessible \
+    --backup-retention-period 0 \
+    --no-multi-az \
+    --no-deletion-protection \
+    --storage-encrypted >/dev/null
+  echo "RDS create solicitado — aguardando available (pode levar ~10–15 min)..."
+}
+
+sync_db_secret_from_rds() {
+  local password endpoint port secret_json
+  endpoint=$(aws rds describe-db-instances --db-instance-identifier "$RDS_INSTANCE" \
+    --query 'DBInstances[0].Endpoint.Address' --output text)
+  port=$(aws rds describe-db-instances --db-instance-identifier "$RDS_INSTANCE" \
+    --query 'DBInstances[0].Endpoint.Port' --output text)
+
+  if [ -f /tmp/feedbacks-rds-master-password.txt ]; then
+    password=$(cat /tmp/feedbacks-rds-master-password.txt)
+  elif aws secretsmanager describe-secret --secret-id "$DB_SECRET_NAME" >/dev/null 2>&1; then
+    echo "Secret $DB_SECRET_NAME já existe e a senha do RDS não foi regenerada — mantém."
+    # Atualiza só o endpoint se necessário
+    secret_json=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_NAME" \
+      --query SecretString --output text)
+    password=$(SECRET="$secret_json" python3 - <<'PY'
+import json, os
+print(json.loads(os.environ["SECRET"])["dbPassword"])
+PY
+)
+  else
+    echo "Secret ausente e senha desconhecida — resetando master password do RDS..."
+    password=$(gen_alnum 32)
+    echo "$password" > /tmp/feedbacks-rds-master-password.txt
+    chmod 600 /tmp/feedbacks-rds-master-password.txt
+    aws rds modify-db-instance \
+      --db-instance-identifier "$RDS_INSTANCE" \
+      --master-user-password "$password" \
+      --apply-immediately >/dev/null
+    # modify pode ir para resetting-master-credentials / modifying
+    sleep 20
+    aws rds wait db-instance-available --db-instance-identifier "$RDS_INSTANCE"
+  fi
+
+  secret_json=$(PASSWORD="$password" ENDPOINT="$endpoint" PORT="$port" \
+    DB_NAME="$RDS_DB_NAME" DB_USER="$RDS_MASTER_USER" python3 - <<'PY'
+import json, os
+print(json.dumps({
+    "dbUrl": f"jdbc:postgresql://{os.environ['ENDPOINT']}:{os.environ['PORT']}/{os.environ['DB_NAME']}",
+    "dbUser": os.environ["DB_USER"],
+    "dbPassword": os.environ["PASSWORD"],
+}))
+PY
+)
+  put_json_secret "$DB_SECRET_NAME" "$secret_json"
+  rm -f /tmp/feedbacks-rds-master-password.txt
+}
+
+resolve_admin_email() {
+  local email
+  if [ -n "${FEEDBACKS_ADMIN_EMAIL:-}" ]; then
+    echo "$FEEDBACKS_ADMIN_EMAIL"
+    return 0
+  fi
+  if aws secretsmanager describe-secret --secret-id "$ADMIN_EMAIL_SECRET_NAME" >/dev/null 2>&1; then
+    aws secretsmanager get-secret-value --secret-id "$ADMIN_EMAIL_SECRET_NAME" \
+      --query SecretString --output text | python3 -c 'import json,sys; print(json.load(sys.stdin)["adminEmail"])'
+    return 0
+  fi
+  email=$(aws ses list-identities --identity-type EmailAddress \
+    --query 'Identities[0]' --output text 2>/dev/null || echo "")
+  if [ -n "$email" ] && [ "$email" != "None" ]; then
+    echo "$email"
+    return 0
+  fi
+  echo "::error::Defina FEEDBACKS_ADMIN_EMAIL (secret GHA) ou verifique uma identidade SES."
+  return 1
+}
+
+ensure_secrets() {
+  local admin_email jwt_secret
+  echo "==> Garantindo secrets demo"
+  sync_db_secret_from_rds
+
+  if aws secretsmanager describe-secret --secret-id "$JWT_SECRET_NAME" >/dev/null 2>&1; then
+    echo "Secret $JWT_SECRET_NAME já existe."
+  else
+    jwt_secret=$(gen_alnum 48)
+    put_json_secret "$JWT_SECRET_NAME" "{\"jwtSecret\":\"$jwt_secret\"}"
+  fi
+
+  admin_email=$(resolve_admin_email)
+  put_json_secret "$ADMIN_EMAIL_SECRET_NAME" "{\"adminEmail\":\"$admin_email\"}"
+  echo "adminEmail=$admin_email"
+}
+
 ensure_rds_available() {
   local status
   status=$(rds_status)
   echo "RDS status: $status"
   case "$status" in
     ABSENT)
-      echo "::error::RDS $RDS_INSTANCE não existe. Provisionar manualmente antes do deploy."
-      exit 1
+      echo "RDS ausente — provisionando do zero (pós destroy)..."
+      create_rds_instance
       ;;
     available)
       echo "RDS já available."
       ;;
-    starting)
-      echo "RDS em starting — aguardando available..."
+    starting|creating|backing-up|modifying|configuring-enhanced-monitoring|storage-optimization)
+      echo "RDS em $status — aguardando available..."
       ;;
     stopping)
       echo "Aguardando RDS stopped antes de start..."
-      wait_rds_status stopped
+      wait_rds_status stopped 90
       aws rds start-db-instance --db-instance-identifier "$RDS_INSTANCE"
       ;;
     stopped)
@@ -97,7 +282,11 @@ ensure_rds_available() {
       echo "Status inesperado ($status) — aguardando available..."
       ;;
   esac
-  aws rds wait db-instance-available --db-instance-identifier "$RDS_INSTANCE"
+  # creating pode demorar: wait nativo + fallback poll longo
+  if ! aws rds wait db-instance-available --db-instance-identifier "$RDS_INSTANCE"; then
+    echo "Waiter nativo falhou — poll estendido..."
+    wait_rds_status available 120
+  fi
   aws rds describe-db-instances --db-instance-identifier "$RDS_INSTANCE" \
     --query 'DBInstances[0].{Status:DBInstanceStatus,Endpoint:Endpoint.Address}' --output table
 }
@@ -297,6 +486,7 @@ smoke_health() {
 cmd="${1:-}"
 case "$cmd" in
   ensure-rds-available) ensure_rds_available ;;
+  ensure-secrets) ensure_secrets ;;
   stop-rds) stop_rds ;;
   delete-rds) delete_rds ;;
   enable-crons) enable_crons ;;
@@ -309,7 +499,7 @@ case "$cmd" in
   smoke-health) smoke_health ;;
   stack-status) stack_status "${2:?stack name}" ;;
   *)
-    echo "Uso: $0 {ensure-rds-available|stop-rds|delete-rds|enable-crons|disable-crons|clean-orphan-ecr|repair-api-stack|destroy-stack <name>|pause|destroy-all [delete_rds] [delete_secrets]|smoke-health}"
+    echo "Uso: $0 {ensure-rds-available|ensure-secrets|stop-rds|delete-rds|enable-crons|disable-crons|clean-orphan-ecr|repair-api-stack|destroy-stack <name>|pause|destroy-all [delete_rds] [delete_secrets]|smoke-health}"
     exit 2
     ;;
 esac
