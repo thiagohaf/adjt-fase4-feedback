@@ -92,7 +92,7 @@ public class RelatorioStack extends Stack {
         SecurityGroup reportSg = SecurityGroup.Builder.create(this, "ReportLambdaSg")
                 .vpc(vpc)
                 .securityGroupName("feedbacks-report-lambda")
-                .description("Lambda report — origem permitida no SG do RDS :5432")
+                .description("Lambda report - allowed source for RDS SG :5432")
                 .allowAllOutbound(true)
                 .build();
 
@@ -158,7 +158,7 @@ public class RelatorioStack extends Stack {
                 .build();
         CfnOutput.Builder.create(this, "ReportLambdaSecurityGroupId")
                 .value(reportSg.getSecurityGroupId())
-                .description("SG da Lambda report — autorizar no SG do RDS :5432")
+                .description("SG da Lambda report - autorizar no SG do RDS :5432")
                 .build();
         CfnOutput.Builder.create(this, "ReportVpcNote")
                 .value("Lambda na VPC default (public + allowPublicSubnet); SG " + reportSg.getSecurityGroupId())
