@@ -53,7 +53,7 @@ EventBridge rules `feedbacks-report-diario` / `feedbacks-report-semanal` —
 
 1. RDS Postgres público + secret `feedbacks/db` (ver `feedbacks/infra/README.md`).
 2. Flyway V1–V5 da API + [`scripts/seed-report-demo.sql`](../../infra/scripts/seed-report-demo.sql).
-3. Redeploy: `FEEDBACKS_DB_SECRET_NAME=feedbacks/db` (Lambda fora de VPC).
+3. Redeploy: `FEEDBACKS_DB_SECRET_NAME=feedbacks/db` (Lambda na VPC default, subnet pública + `allowPublicSubnet`; ver `RelatorioStack`).
 4. Invoke `semanal` → logs `Read model window ... → N linhas` com N > 0;
    e-mail/PDF com média e qty por urgência ≠ zero.
 5. **Teardown** RDS + secret após gravação.
