@@ -126,7 +126,7 @@
 
 **Given** que o Estudante possui JWT válido  
 **And** o Estudante **não** está inscrito na Aula referenciada no request  
-**When** o cliente envia `POST /api/v1/avaliacoes` com `aulaId` (ou equivalente)  
+**When** o cliente envia `POST /avaliacao` com `aulaId` (ou equivalente)  
 **Then** a API **rejeita** a criação  
 **And** `code` é `"INSCRICAO_AULA_OBRIGATORIA"`  
 **And** nenhuma Avaliação de domínio é criada (stub não avança como sucesso de negócio)  
@@ -137,7 +137,7 @@
 
 **Given** que o Estudante está inscrito na Aula alvo (e, por consequência, no Curso)  
 **And** o Estudante possui JWT válido  
-**When** o cliente envia `POST /api/v1/avaliacoes` com `aulaId` válido  
+**When** o cliente envia `POST /avaliacao` com `aulaId` válido  
 **Then** a API **não** rejeita por falta de inscrição  
 **And** o comportamento restante permanece o do stub de Avaliação (FR-7 fora deste módulo)  
 

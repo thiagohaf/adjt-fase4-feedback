@@ -5,11 +5,15 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.certificatemanager.Certificate;
+import software.amazon.awscdk.services.certificatemanager.ICertificate;
 import software.amazon.awscdk.services.cloudwatch.Alarm;
 import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
 import software.amazon.awscdk.services.cloudwatch.MetricOptions;
 import software.amazon.awscdk.services.cloudwatch.TreatMissingData;
+import software.amazon.awscdk.services.cloudwatch.actions.SnsAction;
 import software.amazon.awscdk.services.ec2.IVpc;
+import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ec2.VpcLookupOptions;
 import software.amazon.awscdk.services.ecr.Repository;
@@ -19,10 +23,14 @@ import software.amazon.awscdk.services.ecs.Cluster;
 import software.amazon.awscdk.services.ecs.ContainerImage;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedTaskImageOptions;
+import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationProtocol;
 import software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck;
 import software.amazon.awscdk.services.elasticloadbalancingv2.HttpCodeTarget;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.secretsmanager.ISecret;
+import software.amazon.awscdk.services.sns.Subscription;
+import software.amazon.awscdk.services.sns.SubscriptionProtocol;
+import software.amazon.awscdk.services.sns.Topic;
 import software.constructs.Construct;
 
 import java.nio.file.Path;
@@ -31,10 +39,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * CDK da API em ECS Fargate + ALB + alarme (FR-13/14/15, AD-1, AD-11, AD-17 demo).
+ * CDK da API em ECS Fargate + ALB + alarme SNS (FR-13/14/15, AD-1, AD-11, AD-17 demo).
  *
- * <p>Demo sem NAT: VPC default (subnets públicas) + RDS público. Imagem via
- * Docker asset a partir de {@code apps/api/Dockerfile} (CDK publica no deploy).
+ * <p>Demo: VPC default (subnets públicas) + RDS com SG restrito ao ECS (e Lambda report).
+ * Imagem via Docker asset a partir de {@code apps/api/Dockerfile}. HTTPS se
+ * {@code FEEDBACKS_ACM_CERT_ARN} estiver definido.
  */
 public class ApiStack extends Stack {
 
@@ -67,10 +76,20 @@ public class ApiStack extends Stack {
                 .containerInsightsV2(software.amazon.awscdk.services.ecs.ContainerInsights.DISABLED)
                 .build();
 
+        SecurityGroup ecsSg = SecurityGroup.Builder.create(this, "ApiEcsSg")
+                .vpc(vpc)
+                .securityGroupName("feedbacks-api-ecs")
+                .description("ECS tasks da API — origem permitida no SG do RDS :5432")
+                .allowAllOutbound(true)
+                .build();
+
         ISecret jwtSecret = software.amazon.awscdk.services.secretsmanager.Secret
                 .fromSecretNameV2(this, "JwtSecret", cfg.jwtSecretName());
         ISecret dbSecret = software.amazon.awscdk.services.secretsmanager.Secret
                 .fromSecretNameV2(this, "DbSecret", cfg.dbSecretName());
+        ISecret adminEmailSecret = software.amazon.awscdk.services.secretsmanager.Secret
+                .fromSecretNameV2(this, "AdminEmailSecret", cfg.adminEmailSecretName());
+        String adminEmail = adminEmailSecret.secretValueFromJson("adminEmail").unsafeUnwrap();
 
         String dockerDir = cfg.dockerContextPath() == null || cfg.dockerContextPath().isBlank()
                 ? Path.of("..", "apps", "api").normalize().toString()
@@ -100,7 +119,8 @@ public class ApiStack extends Stack {
                 .platform(Platform.LINUX_AMD64)
                 .build();
 
-        ApplicationLoadBalancedFargateService service =
+        boolean https = cfg.acmCertificateArn() != null && !cfg.acmCertificateArn().isBlank();
+        ApplicationLoadBalancedFargateService.Builder serviceBuilder =
                 ApplicationLoadBalancedFargateService.Builder.create(this, "ApiService")
                         .cluster(cluster)
                         .serviceName("feedbacks-api")
@@ -109,7 +129,7 @@ public class ApiStack extends Stack {
                         .desiredCount(1)
                         .assignPublicIp(true)
                         .publicLoadBalancer(true)
-                        .listenerPort(80)
+                        .securityGroups(List.of(ecsSg))
                         .taskImageOptions(ApplicationLoadBalancedTaskImageOptions.builder()
                                 .image(ContainerImage.fromDockerImageAsset(apiImage))
                                 .containerName("api")
@@ -117,8 +137,21 @@ public class ApiStack extends Stack {
                                 .environment(environment)
                                 .secrets(secrets)
                                 .build())
-                        .healthCheckGracePeriod(Duration.seconds(180))
-                        .build();
+                        .healthCheckGracePeriod(Duration.seconds(180));
+
+        if (https) {
+            ICertificate cert = Certificate.fromCertificateArn(
+                    this, "ApiAcmCert", cfg.acmCertificateArn());
+            serviceBuilder
+                    .protocol(ApplicationProtocol.HTTPS)
+                    .certificate(cert)
+                    .redirectHTTP(true)
+                    .listenerPort(443);
+        } else {
+            serviceBuilder.listenerPort(80);
+        }
+
+        ApplicationLoadBalancedFargateService service = serviceBuilder.build();
 
         service.getTargetGroup().configureHealthCheck(HealthCheck.builder()
                 .path("/q/health/ready")
@@ -139,9 +172,19 @@ public class ApiStack extends Stack {
         jwtSecret.grantRead(service.getTaskDefinition().getExecutionRole());
         dbSecret.grantRead(service.getTaskDefinition().getExecutionRole());
 
+        Topic alarmTopic = Topic.Builder.create(this, "ApiAlarmTopic")
+                .topicName("feedbacks-api-alarms")
+                .displayName("Feedbacks API CloudWatch alarms")
+                .build();
+        Subscription.Builder.create(this, "ApiAlarmEmailSubscription")
+                .topic(alarmTopic)
+                .protocol(SubscriptionProtocol.EMAIL)
+                .endpoint(adminEmail)
+                .build();
+
         Alarm fiveXxAlarm = Alarm.Builder.create(this, "ApiTarget5xxAlarm")
                 .alarmName("feedbacks-api-target-5xx")
-                .alarmDescription("FR-14 — HTTP 5XX no target group da API (ALB)")
+                .alarmDescription("FR-14 — HTTP 5XX no target group da API (ALB); notifica SNS")
                 .metric(service.getTargetGroup().getMetrics().httpCodeTarget(
                         HttpCodeTarget.TARGET_5XX_COUNT,
                         MetricOptions.builder()
@@ -154,10 +197,12 @@ public class ApiStack extends Stack {
                 .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
                 .treatMissingData(TreatMissingData.NOT_BREACHING)
                 .build();
+        fiveXxAlarm.addAlarmAction(new SnsAction(alarmTopic));
 
+        String scheme = https ? "https" : "http";
         CfnOutput.Builder.create(this, "ApiAlbDns")
                 .value(service.getLoadBalancer().getLoadBalancerDnsName())
-                .description("Base URL HTTP da API (Postman / health)")
+                .description("DNS do ALB (Postman / health)")
                 .build();
         CfnOutput.Builder.create(this, "ApiEcrRepositoryUri")
                 .value(repository.getRepositoryUri())
@@ -167,22 +212,37 @@ public class ApiStack extends Stack {
                 .value(fiveXxAlarm.getAlarmName())
                 .description("Alarme CloudWatch FR-14")
                 .build();
+        CfnOutput.Builder.create(this, "ApiAlarmTopicArn")
+                .value(alarmTopic.getTopicArn())
+                .description("SNS do alarme 5XX — confirme o e-mail da subscription uma vez")
+                .build();
+        CfnOutput.Builder.create(this, "ApiEcsSecurityGroupId")
+                .value(ecsSg.getSecurityGroupId())
+                .description("SG das tasks ECS — autorizar no SG do RDS :5432")
+                .build();
         CfnOutput.Builder.create(this, "ApiHealthUrl")
-                .value("http://"
+                .value(scheme
+                        + "://"
                         + service.getLoadBalancer().getLoadBalancerDnsName()
                         + "/api/v1/health")
+                .build();
+        CfnOutput.Builder.create(this, "ApiHttpsEnabled")
+                .value(https ? "true" : "false")
+                .description("true se FEEDBACKS_ACM_CERT_ARN foi informado no deploy")
                 .build();
     }
 
     /**
-     * Config via env — SQS URL para alerta ALTA na API.
+     * Config via env — SQS URL, secrets e certificado ACM opcional.
      */
     public record ApiStackConfig(
             String dockerContextPath,
             String ecrRepositoryName,
             String jwtSecretName,
             String dbSecretName,
-            String sqsAlertQueueUrl) {
+            String adminEmailSecretName,
+            String sqsAlertQueueUrl,
+            String acmCertificateArn) {
 
         public static ApiStackConfig defaults() {
             String queueUrl = System.getenv("FEEDBACKS_SQS_ALERT_QUEUE_URL");
@@ -195,12 +255,18 @@ public class ApiStack extends Stack {
                     "feedbacks-api",
                     envOr("FEEDBACKS_JWT_SECRET_NAME", "feedbacks/jwt"),
                     envOr("FEEDBACKS_DB_SECRET_NAME", "feedbacks/db"),
-                    queueUrl);
+                    envOr("FEEDBACKS_ADMIN_EMAIL_SECRET_NAME", "feedbacks/adminEmail"),
+                    queueUrl,
+                    blankToNull(System.getenv("FEEDBACKS_ACM_CERT_ARN")));
         }
 
         private static String envOr(String key, String fallback) {
             String value = System.getenv(key);
             return value == null || value.isBlank() ? fallback : value;
+        }
+
+        private static String blankToNull(String value) {
+            return value == null || value.isBlank() ? null : value;
         }
     }
 }

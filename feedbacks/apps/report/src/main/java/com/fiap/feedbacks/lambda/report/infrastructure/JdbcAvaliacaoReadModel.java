@@ -23,7 +23,7 @@ public class JdbcAvaliacaoReadModel implements AvaliacaoReadModel {
     private static final Logger LOG = Logger.getLogger(JdbcAvaliacaoReadModel.class);
 
     private static final String SQL = """
-            SELECT nota, urgencia, ocorrido_em
+            SELECT descricao, nota, urgencia, ocorrido_em
               FROM avaliacao
              WHERE ocorrido_em >= ? AND ocorrido_em < ?
             """;
@@ -44,6 +44,7 @@ public class JdbcAvaliacaoReadModel implements AvaliacaoReadModel {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     rows.add(new AvaliacaoSnapshot(
+                            rs.getString("descricao"),
                             rs.getShort("nota"),
                             rs.getString("urgencia"),
                             rs.getTimestamp("ocorrido_em").toInstant()));

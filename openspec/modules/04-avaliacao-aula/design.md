@@ -65,8 +65,8 @@ valida nota/descricao → UNIQUE → persiste com Urgência → **após commit**
 
 | Método | Path | Roles | Descrição |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/avaliacoes` | `ESTUDANTE` | Cria Avaliação real (substitui stub) |
-| `GET` | `/api/v1/avaliacoes` | `ESTUDANTE`, `ADMINISTRADOR` | Lista enriquecida (escopo por papel) |
+| `POST` | `/avaliacao` | `ESTUDANTE` | Cria Avaliação real (substitui stub) |
+| `GET` | `/avaliacao` | `ESTUDANTE`, `ADMINISTRADOR` | Lista enriquecida (escopo por papel) |
 
 ---
 
@@ -251,7 +251,7 @@ JaCoCo ≥ 90% no código deste módulo (AD-14).
 
 ## 11. Postman
 
-- Atualizar request `POST /avaliacoes` com `nota`.
+- Atualizar request `POST /avaliacao` com `nota`.
 - UJ-1: login Estudante → catálogo → inscrição Curso → inscrição Aula → Avaliação (ex. nota 3).
 - Request opcional de listagem Admin após criação.
 

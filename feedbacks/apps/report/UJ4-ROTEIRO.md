@@ -33,7 +33,8 @@ nos últimos 7 dias). Sem JDBC: `total=0` (SPEC-12.5).
 ## 3. Verificar e-mail HTML
 
 Caixa do `adminEmail` (SES sandbox; frequentemente **Spam**): assunto
-`[Feedbacks] Relatório diario|semanal`, corpo HTML com tipo, período SP e agregados.
+`[Feedbacks] Relatório diario|semanal`, corpo HTML com tipo, período SP, agregados
+(média, qty/dia, qty/urgência) **e** tabela Descrição / Urgência / Data de envio.
 
 ## 4. Verificar PDF no S3
 

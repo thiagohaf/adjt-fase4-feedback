@@ -363,9 +363,9 @@ smallrye.jwt.path.groups=role                 # claim `role` → roles do Securi
 
 @POST @Path("/api/v1/cursos")                  @RolesAllowed("ADMINISTRADOR")
 @POST criação de Aula (qualquer rota de aula)  @RolesAllowed("ADMINISTRADOR")
-@POST @Path("/api/v1/avaliacoes")              @RolesAllowed("ESTUDANTE")
+@POST @Path("/avaliacao")              @RolesAllowed("ESTUDANTE")
 @POST inscrição em Curso OU Aula (todas as rotas de inscrição) @RolesAllowed("ESTUDANTE")
-@GET  @Path("/api/v1/avaliacoes")              @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
+@GET  @Path("/avaliacao")              @RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})
 // demais rotas de negócio: @Authenticated (ou @RolesAllowed equivalente)
 ```
 

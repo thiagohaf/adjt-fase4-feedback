@@ -14,7 +14,7 @@
 
 ## 1. Problema
 
-Com inscrição entregue, Ana ainda encontra stub em `POST /api/v1/avaliacoes`: 201 com UUID
+Com inscrição entregue, Ana ainda encontra stub em `POST /avaliacao`: 201 com UUID
 aleatório, sem `nota`, sem Urgência, sem unicidade Estudante+Aula. A listagem só devolve
 `id`/`estudanteId`/`descricao` do schema V1.
 
@@ -41,11 +41,11 @@ Sem domínio real de Avaliação:
 
 | # | Capacidade | Detalhe |
 | --- | --- | --- |
-| 1 | **Criar Avaliação** | `POST /api/v1/avaliacoes` — Estudante; `aulaId` + `descricao` + `nota` 0–10; gate FR-6. |
+| 1 | **Criar Avaliação** | `POST /avaliacao` — Estudante; `aulaId` + `descricao` + `nota` 0–10; gate FR-6. |
 | 2 | **Urgência** | ALTA ≤4; MÉDIA 5–7; BAIXA ≥8; fronteiras 4/5/7/8. |
 | 3 | **Unicidade** | `(estudanteId, aulaId)` → 409 `AVALIACAO_DUPLICADA`; sem upsert. |
 | 4 | **Persistência** | Evoluir `avaliacao` via Flyway **V5**; não reescrever V1–V4. |
-| 5 | **Listagem** | `GET /api/v1/avaliacoes` enriquecida; Admin todas / Estudante próprias. |
+| 5 | **Listagem** | `GET /avaliacao` enriquecida; Admin todas / Estudante próprias. |
 | 6 | **Publish ALTA** | Porta `EvaluationEventPublisher` + adapters; falha não reverte Avaliação. |
 | 7 | **Erros** | Envelope `{ code, message, traceId }`; reutilizar `AULA_NOT_FOUND` / gate inscrição. |
 | 8 | **Postman** | UJ-1 até Avaliação real; nota de fronteira ALTA. |
@@ -69,7 +69,7 @@ Sem domínio real de Avaliação:
 
 ### 3.4 Premissas
 
-- Path `/api/v1/avaliacoes` e roles já existem — substituir stub, não reinventar path.
+- Path `/avaliacao` e roles já existem — substituir stub, não reinventar path.
 - `estudanteId` sempre do JWT; `aulaId`/`descricao`/`nota` no body.
 - Hexagonal AD-2; JaCoCo ≥ 90% (AD-14); publish pós-commit (AD-4).
 

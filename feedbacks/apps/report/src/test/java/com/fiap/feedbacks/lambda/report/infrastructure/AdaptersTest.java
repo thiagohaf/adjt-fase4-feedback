@@ -59,6 +59,7 @@ class AdaptersTest {
         when(preparedStatement.executeQuery()).thenReturn(resultSet);
         when(resultSet.next()).thenReturn(true, false);
         when(resultSet.getShort("nota")).thenReturn((short) 7);
+        when(resultSet.getString("descricao")).thenReturn("Aula ok");
         when(resultSet.getString("urgencia")).thenReturn("MEDIA");
         when(resultSet.getTimestamp("ocorrido_em"))
                 .thenReturn(Timestamp.from(LocalDate.of(2026, 7, 21).atTime(10, 0).atZone(SP).toInstant()));
@@ -68,6 +69,7 @@ class AdaptersTest {
 
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).nota()).isEqualTo((short) 7);
+        assertThat(rows.get(0).descricao()).isEqualTo("Aula ok");
         verify(preparedStatement).setTimestamp(1, Timestamp.from(window.inicio()));
         verify(preparedStatement).setTimestamp(2, Timestamp.from(window.fim()));
     }
@@ -137,9 +139,9 @@ class AdaptersTest {
         Instant trigger = ZonedDateTime.of(2026, 7, 22, 8, 0, 0, 0, SP).toInstant();
         ReportWindow window = ReportWindow.forTrigger(Periodo.DIARIO, trigger);
         fake.add(new AvaliacaoSnapshot(
-                (short) 5, "ALTA", LocalDate.of(2026, 7, 21).atTime(1, 0).atZone(SP).toInstant()));
+                "in", (short) 5, "ALTA", LocalDate.of(2026, 7, 21).atTime(1, 0).atZone(SP).toInstant()));
         fake.add(new AvaliacaoSnapshot(
-                (short) 1, "BAIXA", LocalDate.of(2026, 7, 22).atTime(0, 0).atZone(SP).toInstant()));
+                "out", (short) 1, "BAIXA", LocalDate.of(2026, 7, 22).atTime(0, 0).atZone(SP).toInstant()));
         assertThat(fake.findInWindow(window)).hasSize(1);
     }
 }

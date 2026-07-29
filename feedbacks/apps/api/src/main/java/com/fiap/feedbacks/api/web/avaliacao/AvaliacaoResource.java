@@ -23,7 +23,7 @@ import java.util.Map;
  * GET: listagem enriquecida (FR-8 / SPEC-2.10–2.11).
  * POST: criação real de Avaliação (FR-7/FR-9) com gate FR-6.
  */
-@Path("/api/v1/avaliacoes")
+@Path("/avaliacao")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AvaliacaoResource {

@@ -8,7 +8,7 @@ IaC 100% **Java 17 + AWS CDK v2 (Maven)** — sem TypeScript/JavaScript no repos
 | --- | --- |
 | `FeedbacksAlertaNotificationStack` | SQS + DLQ → `lambda-notification` → SES |
 | `FeedbacksRelatorioStack` | EventBridge (diário/semanal) → `lambda-report` → SES HTML + PDF S3 |
-| `FeedbacksApiStack` | ECR + ECS Fargate (0.25 vCPU) + ALB + alarme CloudWatch 5XX |
+| `FeedbacksApiStack` | ECR + ECS Fargate + ALB + alarme CloudWatch 5XX → SNS |
 
 ## Pré-requisitos
 
@@ -23,20 +23,21 @@ IaC 100% **Java 17 + AWS CDK v2 (Maven)** — sem TypeScript/JavaScript no repos
 3. **Dados reais (demo acadêmico):** secret `feedbacks/db` JSON
    `{"dbUrl":"jdbc:postgresql://...","dbUser":"...","dbPassword":"..."}`  
    e deploy com `FEEDBACKS_DB_SECRET_NAME=feedbacks/db` (liga JDBC).
-4. **Opcional — alvo AD-17:** `FEEDBACKS_REPORT_VPC_ID`, `FEEDBACKS_REPORT_SG_ID`  
-   (private + egress). Sem isso a Lambda fica **fora de VPC** (SES/S3 ok).
+4. A Lambda report entra na **VPC default** (public + `allowPublicSubnet`) com SG
+   `feedbacks-report-lambda` (output `ReportLambdaSecurityGroupId`).
 
-#### Demo RDS público (exceção AD-17 por custo)
+#### Demo RDS + SG endurecido (AD-17 demo)
 
-Conta tipicamente sem NAT: provisionar Postgres público (`db.t4g.micro`, SG `:5432`
-aberto só para demo), aplicar Flyway V1–V5 da API, seed
-[`scripts/seed-report-demo.sql`](scripts/seed-report-demo.sql), criar secret
-`feedbacks/db`, redeploy com `FEEDBACKS_DB_SECRET_NAME` **sem** VPC env.
+Postgres público (`db.t4g.micro`) para endpoint estável; após `cdk deploy` + seed,
+`demo-lifecycle.sh harden-rds-sg` autoriza só **ECS SG** + **Report Lambda SG** e
+**remove** `0.0.0.0/0:5432`. HTTPS no ALB se `FEEDBACKS_ACM_CERT_ARN` (secret/env).
 
 ```bash
 export CDK_DEFAULT_ACCOUNT=... CDK_DEFAULT_REGION=us-east-1
 export FEEDBACKS_DB_SECRET_NAME=feedbacks/db
 cdk deploy FeedbacksRelatorioStack
+# após ApiStack + RelatorioStack:
+./scripts/demo-lifecycle.sh harden-rds-sg
 ```
 
 ### API (ECS / FR-13–15)
@@ -54,9 +55,11 @@ export FEEDBACKS_SQS_ALERT_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/.../fee
 cdk deploy FeedbacksApiStack
 ```
 
-Outputs: `ApiAlbDns`, `ApiHealthUrl`, `ApiAlarmName`, `ApiEcrRepositoryUri`.
+Outputs: `ApiAlbDns`, `ApiHealthUrl`, `ApiAlarmName`, `ApiAlarmTopicArn`,
+`ApiEcsSecurityGroupId`, `ApiEcrRepositoryUri`, `ApiHttpsEnabled`.
 
-Health: `GET http://<ApiAlbDns>/api/v1/health` e probe ALB `/q/health/ready`.
+Health: `GET http(s)://<ApiAlbDns>/api/v1/health` e probe ALB `/q/health/ready`.
+Avaliação: `POST /avaliacao`. Confirme a subscription SNS do alarme no e-mail admin.
 
 Pipeline (GitHub Actions → **Run workflow**):
 

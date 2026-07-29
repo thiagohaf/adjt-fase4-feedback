@@ -40,7 +40,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), "Aula rápida demais", 3))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())
@@ -55,7 +55,7 @@ class AvaliacaoCriarQuarkusTest {
         given()
                 .header("Authorization", "Bearer " + ctx.estudanteToken())
                 .when()
-                .get("/api/v1/avaliacoes")
+                .get("/avaliacao")
                 .then()
                 .statusCode(200)
                 .body("find { it.aulaId == '%s' }.nota".formatted(ctx.aulaId()), equalTo(3));
@@ -71,7 +71,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), "Feedback", 11))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(400)
                 .body("code", equalTo("VALIDATION_ERROR"));
@@ -87,7 +87,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body("{\"aulaId\":\"%s\",\"descricao\":\"   \",\"nota\":5}".formatted(ctx.aulaId()))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(400)
                 .body("code", equalTo("VALIDATION_ERROR"));
@@ -103,7 +103,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(UUID.randomUUID().toString(), "Feedback", 5))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(404)
                 .body("code", equalTo("AULA_NOT_FOUND"));
@@ -119,7 +119,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), "Primeira", 5))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201);
 
@@ -128,7 +128,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), "Segunda", 6))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(409)
                 .body("code", equalTo("AVALIACAO_DUPLICADA"));
@@ -144,7 +144,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(UUID.randomUUID().toString(), "Feedback", 5))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(403)
                 .body("code", equalTo("AUTH_FORBIDDEN"));
@@ -157,7 +157,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(UUID.randomUUID().toString(), "Feedback", 5))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(401);
     }
@@ -179,7 +179,7 @@ class AvaliacaoCriarQuarkusTest {
         given()
                 .header("Authorization", "Bearer " + login("admin@demo.fiap", "admin123"))
                 .when()
-                .get("/api/v1/avaliacoes")
+                .get("/avaliacao")
                 .then()
                 .statusCode(200)
                 .body("find { it.aulaId == '%s' }".formatted(ctx.aulaId()), hasKey("nota"))
@@ -204,14 +204,14 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(aulaId, "De B", 6))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201);
 
         var proprias = given()
                 .header("Authorization", "Bearer " + a.estudanteToken())
                 .when()
-                .get("/api/v1/avaliacoes")
+                .get("/avaliacao")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -257,7 +257,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), "Mesmo com falha", 2))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201)
                 .body("urgencia", equalTo("ALTA"));
@@ -265,7 +265,7 @@ class AvaliacaoCriarQuarkusTest {
         given()
                 .header("Authorization", "Bearer " + ctx.estudanteToken())
                 .when()
-                .get("/api/v1/avaliacoes")
+                .get("/avaliacao")
                 .then()
                 .statusCode(200)
                 .body("find { it.aulaId == '%s' }.descricao".formatted(ctx.aulaId()),
@@ -279,7 +279,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), "Nota " + nota, nota))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201)
                 .body("urgencia", equalTo(urgencia))
@@ -292,7 +292,7 @@ class AvaliacaoCriarQuarkusTest {
                 .contentType(ContentType.JSON)
                 .body(body(ctx.aulaId(), descricao, nota))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201);
     }

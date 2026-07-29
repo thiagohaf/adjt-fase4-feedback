@@ -177,7 +177,7 @@
 ### SPEC-2.6 — Criação de Avaliação exige papel Estudante
 
 **Given** que o Administrador possui JWT válido com `role=ADMINISTRADOR`  
-**When** o cliente envia `POST /api/v1/avaliacoes` com token do Admin  
+**When** o cliente envia `POST /avaliacao` com token do Admin  
 **Then** a API responde **403 Forbidden**  
 **And** `code` é `"AUTH_FORBIDDEN"`  
 
@@ -187,7 +187,7 @@
 
 **Given** que o Estudante possui JWT válido com `role=ESTUDANTE`  
 **And** o Estudante está inscrito na Aula alvo  
-**When** o cliente envia `POST /api/v1/avaliacoes` com token do Estudante  
+**When** o cliente envia `POST /avaliacao` com token do Estudante  
 **Then** a API **não** retorna 403 por autorização  
 
 ---
@@ -212,7 +212,7 @@
 
 **Given** que existem Avaliações de múltiplos Estudantes  
 **And** o Administrador possui JWT válido  
-**When** o cliente envia `GET /api/v1/avaliacoes` com token do Admin  
+**When** o cliente envia `GET /avaliacao` com token do Admin  
 **Then** a API retorna Avaliações de **todos** os Estudantes  
 
 ---
@@ -221,7 +221,7 @@
 
 **Given** que existem Avaliações do Estudante A e do Estudante B  
 **And** o Estudante A possui JWT válido  
-**When** o cliente envia `GET /api/v1/avaliacoes` com token do Estudante A  
+**When** o cliente envia `GET /avaliacao` com token do Estudante A  
 **Then** a API retorna **apenas** Avaliações criadas pelo Estudante A  
 **And** nenhuma Avaliação do Estudante B é incluída  
 

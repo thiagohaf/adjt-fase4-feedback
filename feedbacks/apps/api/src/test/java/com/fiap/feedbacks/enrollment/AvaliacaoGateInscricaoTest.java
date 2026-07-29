@@ -27,7 +27,7 @@ class AvaliacaoGateInscricaoTest {
                 .contentType(ContentType.JSON)
                 .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\",\"nota\":5}".formatted(aulaId))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(403)
                 .body("code", equalTo("INSCRICAO_AULA_OBRIGATORIA"));
@@ -60,7 +60,7 @@ class AvaliacaoGateInscricaoTest {
                 .contentType(ContentType.JSON)
                 .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\",\"nota\":4}".formatted(aulaId))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())

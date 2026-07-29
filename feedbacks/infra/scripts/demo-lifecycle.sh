@@ -111,12 +111,13 @@ ensure_rds_network() {
   if [ -z "$sg_id" ] || [ "$sg_id" = "None" ]; then
     sg_id=$(aws ec2 create-security-group \
       --group-name "$RDS_SG_NAME" \
-      --description "Demo feedbacks RDS public :5432" \
+      --description "Demo feedbacks RDS — ingress só ECS + Lambda report (harden-rds-sg)" \
       --vpc-id "$vpc_id" \
       --query 'GroupId' --output text)
+    # Bootstrap temporário (seed CI / primeiro deploy); harden-rds-sg remove 0.0.0.0/0
     aws ec2 authorize-security-group-ingress \
-      --group-id "$sg_id" --protocol tcp --port 5432 --cidr 0.0.0.0/0 >/dev/null
-    echo "SG criado: $sg_id"
+      --group-id "$sg_id" --protocol tcp --port 5432 --cidr 0.0.0.0/0 >/dev/null || true
+    echo "SG criado: $sg_id (bootstrap 0.0.0.0/0 até harden-rds-sg)"
   else
     echo "SG existente: $sg_id"
   fi
@@ -139,6 +140,56 @@ ensure_rds_network() {
       --subnet-ids $subnet_ids >/dev/null
     echo "Subnet group $RDS_SUBNET_GROUP criado."
   fi
+}
+
+# Autoriza ECS + Lambda report no SG do RDS e remove 0.0.0.0/0 (pós cdk deploy + seed).
+harden_rds_sg() {
+  local sg_id ecs_sg report_sg
+  sg_id=$(aws ec2 describe-security-groups \
+    --filters Name=group-name,Values="$RDS_SG_NAME" \
+    --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+  if [ -z "$sg_id" ] || [ "$sg_id" = "None" ]; then
+    echo "SG $RDS_SG_NAME ausente — nada a endurecer."
+    return 0
+  fi
+
+  ecs_sg=$(aws cloudformation describe-stacks --stack-name "$API_STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='ApiEcsSecurityGroupId'].OutputValue | [0]" \
+    --output text 2>/dev/null || echo "None")
+  report_sg=$(aws cloudformation describe-stacks --stack-name "$RELATORIO_STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='ReportLambdaSecurityGroupId'].OutputValue | [0]" \
+    --output text 2>/dev/null || echo "None")
+
+  if [ -n "$ecs_sg" ] && [ "$ecs_sg" != "None" ] && [ "$ecs_sg" != "null" ]; then
+    aws ec2 authorize-security-group-ingress \
+      --group-id "$sg_id" --protocol tcp --port 5432 \
+      --source-group "$ecs_sg" >/dev/null 2>&1 \
+      && echo "Ingress RDS ← ECS SG $ecs_sg" \
+      || echo "Ingress ECS já presente ou falhou (ok se duplicado)."
+  else
+    echo "ApiEcsSecurityGroupId ausente — rode cdk deploy da ApiStack antes."
+  fi
+
+  if [ -n "$report_sg" ] && [ "$report_sg" != "None" ] && [ "$report_sg" != "null" ]; then
+    aws ec2 authorize-security-group-ingress \
+      --group-id "$sg_id" --protocol tcp --port 5432 \
+      --source-group "$report_sg" >/dev/null 2>&1 \
+      && echo "Ingress RDS ← Report SG $report_sg" \
+      || echo "Ingress Report já presente ou falhou (ok se duplicado)."
+  else
+    echo "ReportLambdaSecurityGroupId ausente — rode cdk deploy do RelatorioStack antes."
+  fi
+
+  # Revoga abertura mundial se existir
+  if aws ec2 revoke-security-group-ingress \
+      --group-id "$sg_id" --protocol tcp --port 5432 --cidr 0.0.0.0/0 >/dev/null 2>&1; then
+    echo "Revogado 0.0.0.0/0:5432 no SG $sg_id"
+  else
+    echo "Sem regra 0.0.0.0/0 para revogar (já endurecido)."
+  fi
+
+  aws ec2 describe-security-groups --group-ids "$sg_id" \
+    --query 'SecurityGroups[0].IpPermissions' --output table || true
 }
 
 create_rds_instance() {
@@ -497,9 +548,10 @@ case "$cmd" in
   pause) pause_demo ;;
   destroy-all) destroy_all "${2:-false}" "${3:-false}" ;;
   smoke-health) smoke_health ;;
+  harden-rds-sg) harden_rds_sg ;;
   stack-status) stack_status "${2:?stack name}" ;;
   *)
-    echo "Uso: $0 {ensure-rds-available|ensure-secrets|stop-rds|delete-rds|enable-crons|disable-crons|clean-orphan-ecr|repair-api-stack|destroy-stack <name>|pause|destroy-all [delete_rds] [delete_secrets]|smoke-health}"
+    echo "Uso: $0 {ensure-rds-available|ensure-secrets|stop-rds|delete-rds|enable-crons|disable-crons|clean-orphan-ecr|repair-api-stack|destroy-stack <name>|pause|destroy-all [delete_rds] [delete_secrets]|smoke-health|harden-rds-sg}"
     exit 2
     ;;
 esac

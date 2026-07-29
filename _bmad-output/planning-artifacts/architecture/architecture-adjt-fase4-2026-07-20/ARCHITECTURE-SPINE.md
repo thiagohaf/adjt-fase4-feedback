@@ -103,11 +103,11 @@ flowchart LR
 - **Prevents:** autorização só no Postman; papéis sem mapa de rotas; Estudante vendo Avaliações alheias
 - **Rule:** JWT **HS256** (secret em Secrets Manager, chave `jwtSecret` — AD-12 intocado) com claim `role` ∈ {`ESTUDANTE`,`ADMINISTRADOR`}; validação via Quarkus Security + SmallRye JWT com `mp.jwt.verify.publickey.algorithm=HS256` explícito (SmallRye privilegia RSA por padrão); emissão via `quarkus-smallrye-jwt-build`; rotas protegidas com `@RolesAllowed`; Lambdas **não** autenticam usuários finais. Matriz: **Admin** cria Curso/Aula e lista **todas** Avaliações; **Estudante** e Admin leem catálogo; **Estudante** inscreve/avalia e lista **só as próprias** Avaliações; criação de Avaliação exige papel Estudante
 
-### AD-9 — Superfície HTTP `[ADOPTED]`
+### AD-9 — Superfície HTTP `[ADOPTED — atualizado 2026-07-28]`
 
-- **Binds:** §9 PRD, OQ-4
+- **Binds:** §9 PRD, OQ-4, enunciado Tech Challenge (`POST /avaliação`)
 - **Prevents:** paths misturados com/sem versão e com acento inconsistente
-- **Rule:** prefixo `/api/v1/`; recurso `avaliacoes` (ASCII); login e health públicos; demais rotas `Authorization: Bearer`
+- **Rule:** catálogo/auth/health mantêm prefixo `/api/v1/` onde já adotado; recurso de Avaliação é **`/avaliacao`** (ASCII singular, alinhado ao enunciado sem acento em URLs); login e health públicos; demais rotas `Authorization: Bearer`
 
 ### AD-10 — Demo de relatório sem endpoint extra `[ADOPTED]`
 
@@ -115,11 +115,11 @@ flowchart LR
 - **Prevents:** depender só da cron para gravar o vídeo; endpoint admin só para demo
 - **Rule:** disparo manual = **invoke** da `lambda-report` no console AWS (ou CLI) com `periodo`; sem rota admin de relatório no MVP
 
-### AD-11 — Observabilidade mínima
+### AD-11 — Observabilidade mínima `[ADOPTED — atualizado 2026-07-28]`
 
 - **Binds:** FR-13, FR-14
 - **Prevents:** health “sempre 200” sem dependência; métricas inventadas fora do CloudWatch
-- **Rule:** SmallRye Health (`/q/health`) com checagem de DB, exposto em path compatível com o ALB health check; CloudWatch na API: **RequestCount**, **4XX/5XX**, **TargetResponseTime** (ou equivalente ALB/ECS) + **≥1 alarme** (ex.: 5XX > 0 em 5 min); logs com `traceId`/request id
+- **Rule:** SmallRye Health (`/q/health`) com checagem de DB, exposto em path compatível com o ALB health check; CloudWatch na API: **RequestCount**, **4XX/5XX**, **TargetResponseTime** (ou equivalente ALB/ECS) + **≥1 alarme** (`feedbacks-api-target-5xx`) com **ação SNS** (e-mail `adminEmail`); logs com `traceId`/request id
 
 ### AD-12 — Segredos, IaC e teardown `[ADOPTED]`
 
@@ -145,18 +145,18 @@ flowchart LR
 - **Prevents:** avaliar sem inscrição; divergência 409 vs idempotência; Avaliação sem Curso
 - **Rule:** inscrição em **Curso e Aula** obrigatória antes de Avaliar; Aula deve pertencer ao Curso; duplicata de inscrição ou de Avaliação (Estudante+Aula) → **409**; sem upsert no MVP
 
-### AD-16 — Read model de relatório
+### AD-16 — Read model de relatório `[ADOPTED — atualizado 2026-07-28]`
 
 - **Binds:** FR-11, FR-17, `lambda-report`
 - **Prevents:** Lambda inventar colunas/entidades incompatíveis com o schema da API
-- **Rule:** agregação lê a tabela/entidade **Avaliação** escrita pela API; campos mínimos `nota`, `urgencia`, `ocorrido_em` (timestamptz); diário: média + qty total + qty por urgência; semanal: média + qty **por dia civil SP** + qty por urgência
+- **Rule:** agregação lê a tabela/entidade **Avaliação** escrita pela API; campos mínimos `descricao`, `nota`, `urgencia`, `ocorrido_em` (timestamptz); diário/semanal: média + qty + qty por urgência (+ qty/dia no semanal); HTML/PDF também listam Descrição | Urgência | Data de envio
 
-### AD-17 — Envelope operacional AWS
+### AD-17 — Envelope operacional AWS `[ADOPTED — atualizado 2026-07-28]`
 
 - **Binds:** ECS, RDS, Lambdas, rede
 - **Prevents:** Lambda-report sem rota ao RDS; API pública sem ALB; notification na VPC sem necessidade
 - **Rule (alvo):** VPC com subnets privadas para **ECS** + **RDS** + **`lambda-report`**; **`lambda-notification` fora da VPC** (SQS+SES); ALB internet-facing → ECS; SG: ECS e `lambda-report` → RDS:5432; sem IP público no RDS
-- **Demo academic exception (custo / prazo):** quando a conta não tem NAT nem subnets privadas, a demo MAY usar **RDS PostgreSQL público** (`db.t4g.micro`) + **`lambda-report` fora da VPC** alcançando o endpoint pela internet (secret `feedbacks/db`, `FEEDBACKS_DB_SECRET_NAME`), mantendo SES/S3 sem VPC endpoints. **Teardown obrigatório** após o vídeo (apagar RDS + secret). O alvo AD-17 permanece a referência para entrega “completa”; a exceção não altera `lambda-notification` (continua fora da VPC).
+- **Demo academic (custo / prazo):** VPC **default**; RDS ainda `publicly-accessible` para endpoint estável, porém SG **sem** `0.0.0.0/0` após `harden-rds-sg` (só ECS SG + Report Lambda SG); `lambda-report` na VPC default (public + `allowPublicSubnet`); HTTPS no ALB se `FEEDBACKS_ACM_CERT_ARN`; **teardown** após o vídeo. `lambda-notification` continua fora da VPC.
 
 ### AD-18 — Resiliência nas bordas externas
 
@@ -169,7 +169,7 @@ flowchart LR
 | Concern | Convention |
 | --- | --- |
 | Naming (Java) | Pacotes `com.fiap.feedbacks.{api\|application\|domain\|infrastructure}`; Lambdas `...lambda.notification` / `...lambda.report` |
-| Naming (HTTP/JSON) | camelCase JSON; recursos plural kebab/ASCII (`cursos`, `aulas`, `avaliacoes`) |
+| Naming (HTTP/JSON) | camelCase JSON; recursos plural kebab/ASCII (`cursos`, `aulas`); Avaliação = path singular `/avaliacao` (enunciado) |
 | IDs | UUID string na API e eventos |
 | Datas | ISO-8601 com offset; janelas de relatório = dias civis `America/Sao_Paulo` |
 | Erros HTTP | corpo `{ "code", "message", "traceId" }`; 409 conflito; 404 id inexistente; 403 papel; 400 validação |

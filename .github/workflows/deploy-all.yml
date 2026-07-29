@@ -108,6 +108,7 @@ jobs:
           FEEDBACKS_DB_SECRET_NAME: feedbacks/db
           FEEDBACKS_JWT_SECRET_NAME: feedbacks/jwt
           FEEDBACKS_SQS_ALERT_QUEUE_URL: ${{ secrets.FEEDBACKS_SQS_ALERT_QUEUE_URL }}
+          FEEDBACKS_ACM_CERT_ARN: ${{ secrets.FEEDBACKS_ACM_CERT_ARN }}
         run: |
           mvn -B -q compile
           cdk deploy FeedbacksAlertaNotificationStack FeedbacksRelatorioStack FeedbacksApiStack \
@@ -150,6 +151,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f feedbacks/infra/scripts/seed-report-demo.sql
           echo "Seed aplicado."
 
+      - name: Harden RDS SG (ECS + Report Lambda; remove 0.0.0.0/0)
+        run: feedbacks/infra/scripts/demo-lifecycle.sh harden-rds-sg
+
       - name: Job summary
         if: always()
         run: |
@@ -166,5 +170,6 @@ jobs:
             echo "### Postman"
             echo "1. Importe \`docs/postman/feedbacks-api.postman_collection.json\`"
             echo "2. Env **AWS ALB** — \`baseUrl\` = \`http://${{ steps.smoke.outputs.alb_dns }}\`"
-            echo "3. Health → \`GET /api/v1/health\`"
+            echo "3. Health → \`GET /api/v1/health\` · Avaliação → \`POST /avaliacao\`"
+            echo "4. Confirme a subscription SNS do alarme (\`ApiAlarmTopicArn\`) no e-mail admin"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -62,16 +62,33 @@ class GenerateReportUseCaseTest {
         Instant trigger = ZonedDateTime.of(2026, 7, 22, 8, 0, 0, 0, SP).toInstant();
         Instant inWindow = LocalDate.of(2026, 7, 20).atTime(15, 0).atZone(SP).toInstant();
         Instant outWindow = LocalDate.of(2026, 7, 14).atTime(12, 0).atZone(SP).toInstant();
-        readModel.add(new AvaliacaoSnapshot((short) 9, "ALTA", inWindow));
-        readModel.add(new AvaliacaoSnapshot((short) 3, "BAIXA", outWindow));
+        readModel.add(new AvaliacaoSnapshot("Aula rápida demais", (short) 9, "ALTA", inWindow));
+        readModel.add(new AvaliacaoSnapshot("fora", (short) 3, "BAIXA", outWindow));
 
         GenerateReportUseCase.ReportResult result = useCase.execute(Periodo.SEMANAL, trigger);
 
         assertThat(result.aggregates().total()).isEqualTo(1);
         assertThat(result.aggregates().mediaNota()).isEqualTo(9.0);
         assertThat(emailSender.sentEmails().get(0).subject()).contains("semanal");
-        assertThat(emailSender.sentEmails().get(0).htmlBody()).contains("ALTA");
+        assertThat(emailSender.sentEmails().get(0).htmlBody())
+                .contains("ALTA")
+                .contains("Descrição")
+                .contains("Data de envio")
+                .contains("Aula rápida demais");
         assertThat(pdfStore.storedPdfs().get(0).objectKey()).startsWith("relatorios/semanal/");
+    }
+
+    @Test
+    void escapeHtmlNaListaDeAvaliacoes() {
+        Instant trigger = ZonedDateTime.of(2026, 7, 22, 8, 0, 0, 0, SP).toInstant();
+        Instant inWindow = LocalDate.of(2026, 7, 21).atTime(12, 0).atZone(SP).toInstant();
+        readModel.add(new AvaliacaoSnapshot("<script>x</script>", (short) 2, "ALTA", inWindow));
+
+        useCase.execute(Periodo.DIARIO, trigger);
+
+        assertThat(emailSender.sentEmails().get(0).htmlBody())
+                .contains("&lt;script&gt;x&lt;/script&gt;")
+                .doesNotContain("<script>x</script>");
     }
 
     @Test
