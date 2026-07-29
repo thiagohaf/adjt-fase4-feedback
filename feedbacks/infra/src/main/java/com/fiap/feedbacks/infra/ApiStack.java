@@ -145,7 +145,6 @@ public class ApiStack extends Stack {
             serviceBuilder
                     .protocol(ApplicationProtocol.HTTPS)
                     .certificate(cert)
-                    .redirectHTTP(true)
                     .listenerPort(443);
         } else {
             serviceBuilder.listenerPort(80);
