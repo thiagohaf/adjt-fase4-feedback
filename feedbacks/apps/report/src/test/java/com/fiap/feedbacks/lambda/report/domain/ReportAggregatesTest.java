@@ -28,9 +28,9 @@ class ReportAggregatesTest {
         ReportAggregates agg = ReportAggregates.from(
                 window,
                 List.of(
-                        new AvaliacaoSnapshot((short) 8, "ALTA", mid),
-                        new AvaliacaoSnapshot((short) 6, "MEDIA", mid),
-                        new AvaliacaoSnapshot((short) 4, "BAIXA", mid)));
+                        new AvaliacaoSnapshot("desc", (short) 8, "ALTA", mid),
+                        new AvaliacaoSnapshot("desc", (short) 6, "MEDIA", mid),
+                        new AvaliacaoSnapshot("desc", (short) 4, "BAIXA", mid)));
 
         assertThat(agg.total()).isEqualTo(3);
         assertThat(agg.mediaNota()).isEqualTo(6.0);
@@ -54,9 +54,9 @@ class ReportAggregatesTest {
         ReportAggregates agg = ReportAggregates.from(
                 window,
                 List.of(
-                        new AvaliacaoSnapshot((short) 10, "ALTA", d15),
-                        new AvaliacaoSnapshot((short) 5, "ALTA", d15),
-                        new AvaliacaoSnapshot((short) 7, "MEDIA", d16)));
+                        new AvaliacaoSnapshot("desc", (short) 10, "ALTA", d15),
+                        new AvaliacaoSnapshot("desc", (short) 5, "ALTA", d15),
+                        new AvaliacaoSnapshot("desc", (short) 7, "MEDIA", d16)));
 
         assertThat(agg.total()).isEqualTo(3);
         assertThat(agg.mediaNota()).isEqualTo(7.333333333333333, org.assertj.core.data.Offset.offset(0.001));

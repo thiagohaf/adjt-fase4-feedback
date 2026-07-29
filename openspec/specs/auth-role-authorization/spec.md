@@ -51,18 +51,18 @@ O sistema SHALL permitir `GET` no catálogo (ex.: `GET /api/v1/cursos`,
 
 ### Requirement: Criação de Avaliação e Inscrição exigem papel ESTUDANTE
 
-O sistema SHALL proteger `POST /api/v1/avaliacoes` e as rotas de inscrição
+O sistema SHALL proteger `POST /avaliacao` e as rotas de inscrição
 (ex.: `POST /api/v1/cursos/{id}/inscricoes`) com `@RolesAllowed("ESTUDANTE")`, respondendo 403
 `AUTH_FORBIDDEN` para token válido de papel `ADMINISTRADOR`.
 
 #### Scenario: SPEC-2.6 — Administrador não cria Avaliação
 
-- **WHEN** o cliente envia `POST /api/v1/avaliacoes` com JWT válido de `role=ADMINISTRADOR`
+- **WHEN** o cliente envia `POST /avaliacao` com JWT válido de `role=ADMINISTRADOR`
 - **THEN** a API responde 403 Forbidden com `code` igual a `"AUTH_FORBIDDEN"`
 
 #### Scenario: SPEC-2.7 — Estudante cria Avaliação (autorização OK)
 
-- **WHEN** o cliente envia `POST /api/v1/avaliacoes` com JWT válido de `role=ESTUDANTE`
+- **WHEN** o cliente envia `POST /avaliacao` com JWT válido de `role=ESTUDANTE`
 - **THEN** a API não retorna 403 por autorização
 
 #### Scenario: SPEC-2.8 — Administrador não se inscreve
@@ -77,7 +77,7 @@ O sistema SHALL proteger `POST /api/v1/avaliacoes` e as rotas de inscrição
 
 ### Requirement: Listagem de Avaliações filtra por papel via CurrentUserProvider
 
-O sistema SHALL expor `GET /api/v1/avaliacoes` com
+O sistema SHALL expor `GET /avaliacao` com
 `@RolesAllowed({"ESTUDANTE", "ADMINISTRADOR"})` e aplicar a regra fina no caso de uso (não só na
 anotação, conforme AD-8): Administrador recebe Avaliações de todos os Estudantes; Estudante
 recebe apenas as próprias, identificadas pelo `sub` do token via porta `CurrentUserProvider`
@@ -85,12 +85,12 @@ recebe apenas as próprias, identificadas pelo `sub` do token via porta `Current
 
 #### Scenario: SPEC-2.10 — Admin vê todas as Avaliações
 
-- **WHEN** existem Avaliações de múltiplos Estudantes e o cliente envia `GET /api/v1/avaliacoes` com JWT válido de Administrador
+- **WHEN** existem Avaliações de múltiplos Estudantes e o cliente envia `GET /avaliacao` com JWT válido de Administrador
 - **THEN** a API retorna Avaliações de todos os Estudantes
 
 #### Scenario: SPEC-2.11 — Estudante vê só as próprias
 
-- **WHEN** existem Avaliações do Estudante A e do Estudante B e o cliente envia `GET /api/v1/avaliacoes` com JWT válido do Estudante A
+- **WHEN** existem Avaliações do Estudante A e do Estudante B e o cliente envia `GET /avaliacao` com JWT válido do Estudante A
 - **THEN** a API retorna apenas Avaliações criadas pelo Estudante A
 - **AND** nenhuma Avaliação do Estudante B é incluída
 

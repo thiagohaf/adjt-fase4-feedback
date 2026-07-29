@@ -45,7 +45,7 @@ O sistema SHALL garantir que falha transitória ou permanente no adapter de publ
 #### Scenario: SPEC-10prep.4 — Publish falha e Avaliação permanece
 
 - **WHEN** a Avaliação ALTA foi commitada e o publisher lança erro
-- **THEN** a Avaliação continua recuperável via `GET /api/v1/avaliacoes`
+- **THEN** a Avaliação continua recuperável via `GET /avaliacao`
 - **AND** a resposta HTTP de criação permanece 201 (sucesso de domínio)
 
 ### Requirement: Contrato do evento é único entre ambientes

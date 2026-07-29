@@ -47,8 +47,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
             },
             "description": "Health público (AD-9 / FR-13). Sem token. Esperado com DB ok: `{\"status\":\"UP\",\"database\":\"UP\"}` (HTTP 200). Com DB down: status/database DOWN e HTTP 503."
           },
@@ -64,8 +70,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/q/health/ready",
-              "host": ["{{baseUrl}}"],
-              "path": ["q", "health", "ready"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "q",
+                "health",
+                "ready"
+              ]
             },
             "description": "Readiness SmallRye (FR-13). Path usado pelo health check do ALB (ApiStack). Sem token."
           },
@@ -81,8 +93,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/q/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["q", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "q",
+                "health"
+              ]
             },
             "description": "Health nativo SmallRye (liveness/readiness agregados)."
           },
@@ -127,8 +144,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "description": "Login público. Em sucesso, grava `accessToken` na collection."
           },
@@ -168,8 +192,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "description": "Login como ADMINISTRADOR. Grava `accessToken` na collection."
           },
@@ -194,8 +225,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "description": "Esperado: 401 com `code` = `AUTH_INVALID_CREDENTIALS` e `traceId`."
           },
@@ -220,8 +258,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "description": "Esperado: 400 com `code` = `VALIDATION_ERROR`."
           },
@@ -239,8 +284,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos"
+              ]
             },
             "description": "Requer ESTUDANTE ou ADMINISTRADOR. Lista persistida (criado_em ASC)."
           },
@@ -253,8 +304,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos", "{{cursoId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos",
+                "{{cursoId}}"
+              ]
             },
             "description": "Requer ESTUDANTE ou ADMINISTRADOR. Id inexistente → 404 CURSO_NOT_FOUND."
           },
@@ -291,8 +349,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos"
+              ]
             },
             "description": "Requer ADMINISTRADOR. Salva `cursoId` no 201. Com token de Estudante → 403 AUTH_FORBIDDEN."
           },
@@ -305,8 +369,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos",
+                "{{cursoId}}",
+                "aulas"
+              ]
             },
             "description": "Requer ESTUDANTE ou ADMINISTRADOR. Curso inexistente → 404 CURSO_NOT_FOUND."
           },
@@ -343,8 +415,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos",
+                "{{cursoId}}",
+                "aulas"
+              ]
             },
             "description": "Requer ADMINISTRADOR. Campo `nome` (não `titulo`). Salva `aulaId` no 201."
           },
@@ -357,8 +437,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/inscricoes",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos", "{{cursoId}}", "inscricoes"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos",
+                "{{cursoId}}",
+                "inscricoes"
+              ]
             },
             "description": "Requer ESTUDANTE. Persiste inscrição no Curso (201 com id/cursoId/estudanteId). Duplicata → 409 INSCRICAO_DUPLICADA. Curso inexistente → 404 CURSO_NOT_FOUND. Admin → 403."
           },
@@ -371,8 +459,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos/{{cursoId}}/aulas/{{aulaId}}/inscricoes",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos", "{{cursoId}}", "aulas", "{{aulaId}}", "inscricoes"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos",
+                "{{cursoId}}",
+                "aulas",
+                "{{aulaId}}",
+                "inscricoes"
+              ]
             },
             "description": "Requer ESTUDANTE e inscrição prévia no Curso. 201 com id/cursoId/aulaId/estudanteId. Sem inscrição no Curso → 409 INSCRICAO_CURSO_OBRIGATORIA. Duplicata → 409 INSCRICAO_DUPLICADA."
           },
@@ -390,8 +488,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/aulas/{{aulaId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "aulas", "{{aulaId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "aulas",
+                "{{aulaId}}"
+              ]
             },
             "description": "Requer ESTUDANTE ou ADMINISTRADOR. Id inexistente → 404 AULA_NOT_FOUND."
           },
@@ -408,9 +513,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/avaliacoes",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "avaliacoes"]
+              "raw": "{{baseUrl}}/avaliacao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "avaliacao"
+              ]
             },
             "description": "Requer ESTUDANTE ou ADMINISTRADOR. Estudante vê só as próprias. Itens incluem nota, urgencia, ocorridoEm, aulaId, cursoId (FR-8)."
           },
@@ -451,9 +560,13 @@
               "raw": "{\n  \"aulaId\": \"{{aulaId}}\",\n  \"descricao\": \"Aula rápida demais — nota de fronteira ALTA\",\n  \"nota\": 3\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/avaliacoes",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "avaliacoes"]
+              "raw": "{{baseUrl}}/avaliacao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "avaliacao"
+              ]
             },
             "description": "Requer ESTUDANTE inscrito na Aula (FR-6). Body: aulaId + descricao + nota (0–10). 201 com urgencia (ALTA≤4 / MEDIA 5–7 / BAIXA≥8), ocorridoEm, cursoId. Sem inscrição → 403 INSCRICAO_AULA_OBRIGATORIA. Duplicata → 409 AVALIACAO_DUPLICADA. Nota inválida → 400 VALIDATION_ERROR."
           },
@@ -474,8 +587,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos"
+              ]
             },
             "description": "Esperado: 401 `AUTH_MISSING_TOKEN` com `traceId`."
           },
@@ -498,8 +617,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos"
+              ]
             },
             "description": "Esperado: 401 `AUTH_INVALID_TOKEN`."
           },
@@ -521,8 +646,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cursos",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cursos"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cursos"
+              ]
             },
             "description": "Faça login como Estudante antes. Esperado: 403 `AUTH_FORBIDDEN`."
           },

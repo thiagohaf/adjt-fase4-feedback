@@ -22,7 +22,7 @@ Sem domínio real de inscrição:
 
 - UJ-1 (cena inscrição + avaliação) não é demonstrável de ponta a ponta.
 - FR-5 (Curso + Aula; rejeitar duplicata; Aula só se inscrito no Curso) fica sem cobertura.
-- FR-6 (Avaliação exige inscrição na Aula) não tem porta de consulta nem rejeição no stub de `POST /avaliacoes`.
+- FR-6 (Avaliação exige inscrição na Aula) não tem porta de consulta nem rejeição no stub de `POST /avaliacao`.
 - Módulo Avaliação nasce sem base AD-15 (`INSCRICAO_CURSO` / `INSCRICAO_AULA`).
 
 ## 2. Valor de negócio
@@ -46,7 +46,7 @@ Sem domínio real de inscrição:
 | 2 | **Inscrever em Aula** | `POST /api/v1/cursos/{cursoId}/aulas/{aulaId}/inscricoes` — Estudante; Aula do Curso; exige inscrição prévia no Curso. |
 | 3 | **Duplicata → 409** | Par `(estudanteId, cursoId)` e `(estudanteId, aulaId)` únicos; código `INSCRICAO_DUPLICADA`. |
 | 4 | **Persistência** | Tabelas `inscricao_curso` / `inscricao_aula` via Flyway **V4**; não reescrever V1–V3. |
-| 5 | **Gate FR-6** | Porta de consulta “estudante inscrito na Aula?”; stub `POST /api/v1/avaliacoes` rejeita sem inscrição (sem implementar FR-7). |
+| 5 | **Gate FR-6** | Porta de consulta “estudante inscrito na Aula?”; stub `POST /avaliacao` rejeita sem inscrição (sem implementar FR-7). |
 | 6 | **Erros** | Envelope `{ code, message, traceId }`; reutilizar `CURSO_NOT_FOUND` / `AULA_NOT_FOUND`; auth inalterado. |
 | 7 | **Postman** | Trocar stub de inscrição; adicionar inscrição em Aula; capturar ids no fluxo UJ-1. |
 
@@ -96,7 +96,7 @@ Herdada do módulo 01 / AD-8 — **não reinventar**:
 
 1. Domínio `InscricaoCurso` / `InscricaoAula` + use cases + adapters JPA.
 2. Resources: substituir stub de inscrição em Curso; adicionar inscrição em Aula.
-3. Porta de verificação de inscrição + rejeição no stub `POST /avaliacoes` (FR-6).
+3. Porta de verificação de inscrição + rejeição no stub `POST /avaliacao` (FR-6).
 4. Migration Flyway V4.
 5. Testes (unit + `@QuarkusTest`) cobrindo specs; JaCoCo ≥ 90%.
 6. Collection Postman atualizada (UJ-1 inscrição Curso → Aula).
@@ -110,6 +110,6 @@ Herdada do módulo 01 / AD-8 — **não reinventar**:
 - [x] Inscrição em Aula sem inscrição no Curso → rejeitada (código de domínio documentado).
 - [x] Curso/Aula inexistentes → 404 `CURSO_NOT_FOUND` / `AULA_NOT_FOUND`.
 - [x] Admin recebe 403 `AUTH_FORBIDDEN` ao tentar se inscrever.
-- [x] `POST /avaliacoes` sem inscrição na Aula → rejeitado (FR-6); com inscrição → stub não retorna 403 de domínio.
+- [x] `POST /avaliacao` sem inscrição na Aula → rejeitado (FR-6); com inscrição → stub não retorna 403 de domínio.
 - [x] Auth (login, claims, `AUTH_*`) e catálogo (FR-3/4) inalterados.
 - [x] Fluxo UJ-1 (inscrição) reproduzível na collection Postman.

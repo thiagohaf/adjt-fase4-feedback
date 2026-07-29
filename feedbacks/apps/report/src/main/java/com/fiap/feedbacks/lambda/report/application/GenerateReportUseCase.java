@@ -14,18 +14,24 @@ import org.jboss.logging.Logger;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Janela → agrega → PDF → S3 → SES HTML (D4–D6). Sem writes de domínio (SPEC-11.3).
+ * HTML/PDF incluem lista Descrição | Urgência | Data de envio além dos agregados.
  */
 @ApplicationScoped
 public class GenerateReportUseCase {
 
     private static final Logger LOG = Logger.getLogger(GenerateReportUseCase.class);
+    private static final ZoneId ZONE_SP = ZoneId.of("America/Sao_Paulo");
+    private static final DateTimeFormatter DATA_ENVIO =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZONE_SP);
 
     private final AvaliacaoReadModel readModel;
     private final ReportPdfGenerator pdfGenerator;
@@ -56,12 +62,12 @@ public class GenerateReportUseCase {
         List<AvaliacaoSnapshot> rows = readModel.findInWindow(window);
         ReportAggregates aggregates = ReportAggregates.from(window, rows);
 
-        byte[] pdf = pdfGenerator.generate(aggregates);
+        byte[] pdf = pdfGenerator.generate(aggregates, rows);
         String objectKey = buildObjectKey(periodo, window.keyDate());
         String storedKey = pdfStore.store(objectKey, pdf);
 
         String subject = "[Feedbacks] Relatório " + periodo.wireValue();
-        String html = buildHtml(aggregates);
+        String html = buildHtml(aggregates, rows);
         LOG.infof(
                 "Relatório periodo=%s total=%d s3Key=%s to=%s",
                 periodo.wireValue(),
@@ -74,14 +80,14 @@ public class GenerateReportUseCase {
     }
 
     static String buildObjectKey(Periodo periodo, LocalDate keyDate) {
-        return "relatorios/" + periodo.wireValue() + "/" + keyDate + "/" + UUID.randomUUID() + ".pdf";
+        return "relatorios/" + periodo.wireValue() + "/" + keyDate + "/" + java.util.UUID.randomUUID() + ".pdf";
     }
 
-    static String buildHtml(ReportAggregates aggregates) {
+    static String buildHtml(ReportAggregates aggregates, List<AvaliacaoSnapshot> rows) {
         StringBuilder urgRows = new StringBuilder();
         for (Map.Entry<String, Long> e : aggregates.qtyPorUrgencia().entrySet()) {
             urgRows.append("<tr><td>")
-                    .append(e.getKey())
+                    .append(escapeHtml(e.getKey()))
                     .append("</td><td>")
                     .append(e.getValue())
                     .append("</td></tr>");
@@ -98,6 +104,25 @@ public class GenerateReportUseCase {
                         .append("</td></tr>");
             }
         }
+        StringBuilder itemRows = new StringBuilder();
+        List<AvaliacaoSnapshot> ordered = rows == null
+                ? List.of()
+                : rows.stream()
+                        .sorted(Comparator.comparing(AvaliacaoSnapshot::ocorridoEm).reversed())
+                        .toList();
+        if (ordered.isEmpty()) {
+            itemRows.append("<tr><td colspan=\"3\">Nenhuma avaliação no período</td></tr>");
+        } else {
+            for (AvaliacaoSnapshot row : ordered) {
+                itemRows.append("<tr><td>")
+                        .append(escapeHtml(row.descricao()))
+                        .append("</td><td>")
+                        .append(escapeHtml(row.urgencia()))
+                        .append("</td><td>")
+                        .append(DATA_ENVIO.format(row.ocorridoEm()))
+                        .append("</td></tr>");
+            }
+        }
         return String.format(
                 Locale.US,
                 """
@@ -111,6 +136,8 @@ public class GenerateReportUseCase {
                 <table border="1" cellpadding="4"><tr><th>Urgência</th><th>Qty</th></tr>%s</table>
                 <h3>Por dia civil</h3>
                 <table border="1" cellpadding="4"><tr><th>Dia</th><th>Qty</th></tr>%s</table>
+                <h3>Avaliações (Descrição / Urgência / Data de envio)</h3>
+                <table border="1" cellpadding="4"><tr><th>Descrição</th><th>Urgência</th><th>Data de envio</th></tr>%s</table>
                 </body></html>
                 """,
                 aggregates.periodo().wireValue(),
@@ -120,7 +147,18 @@ public class GenerateReportUseCase {
                 aggregates.mediaNota(),
                 aggregates.total(),
                 urgRows,
-                dayRows);
+                dayRows,
+                itemRows);
+    }
+
+    static String escapeHtml(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        return raw.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     public record ReportResult(ReportAggregates aggregates, String s3ObjectKey) {

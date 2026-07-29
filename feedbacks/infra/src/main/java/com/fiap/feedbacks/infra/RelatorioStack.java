@@ -4,7 +4,6 @@ import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.ec2.ISecurityGroup;
 import software.amazon.awscdk.services.ec2.IVpc;
 import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ec2.SubnetSelection;
@@ -35,13 +34,8 @@ import java.util.Map;
  * CDK do caminho de relatório (FR-11/12/17 / AD-6 / AD-10 / AD-17).
  *
  * <p>EventBridge 08:00 {@code America/Sao_Paulo} (= 11:00 UTC) + S3 + Lambda report.
- * VPC (AD-17): só quando {@code FEEDBACKS_REPORT_VPC_ID} (e opcionalmente SG) forem
- * informados — caso contrário a Lambda fica fora de VPC (SES/S3 ok; RDS exige VPC
- * + SG → 5432 na conta demo). Sem ECS/ECR (FR-15).
- *
- * <p>Invoke manual (AD-10):
- * {@code aws lambda invoke --function-name feedbacks-lambda-report
- * --payload '{"periodo":"diario"}' out.json}
+ * Demo: Lambda na VPC default (subnets públicas + {@code allowPublicSubnet}) com SG
+ * dedicado autorizável no RDS — sem NAT. Invoke manual (AD-10) permanece.
  */
 public class RelatorioStack extends Stack {
 
@@ -89,9 +83,18 @@ public class RelatorioStack extends Stack {
             env.put("DB_PASSWORD", dbSecret.secretValueFromJson("dbPassword").unsafeUnwrap());
             env.put("FEEDBACKS_REPORT_JDBC_ENABLED", "true");
         } else {
-            // Demo UJ-4 sem RDS: PDF/SES com agregados zerados (SPEC-12.5)
             env.put("FEEDBACKS_REPORT_JDBC_ENABLED", "false");
         }
+
+        IVpc vpc = Vpc.fromLookup(this, "ReportVpc", VpcLookupOptions.builder()
+                .isDefault(true)
+                .build());
+        SecurityGroup reportSg = SecurityGroup.Builder.create(this, "ReportLambdaSg")
+                .vpc(vpc)
+                .securityGroupName("feedbacks-report-lambda")
+                .description("Lambda report — origem permitida no SG do RDS :5432")
+                .allowAllOutbound(true)
+                .build();
 
         Function.Builder fnBuilder = Function.Builder.create(this, "ReportLambda")
                 .functionName("feedbacks-lambda-report")
@@ -100,22 +103,13 @@ public class RelatorioStack extends Stack {
                 .code(Code.fromAsset(zipPath))
                 .memorySize(1024)
                 .timeout(Duration.seconds(120))
-                .environment(env);
-
-        if (cfg.vpcId() != null && !cfg.vpcId().isBlank()) {
-            IVpc vpc = Vpc.fromLookup(this, "ReportVpc", VpcLookupOptions.builder()
-                    .vpcId(cfg.vpcId())
-                    .build());
-            fnBuilder.vpc(vpc);
-            fnBuilder.vpcSubnets(SubnetSelection.builder()
-                    .subnetType(SubnetType.PRIVATE_WITH_EGRESS)
-                    .build());
-            if (cfg.lambdaSecurityGroupId() != null && !cfg.lambdaSecurityGroupId().isBlank()) {
-                ISecurityGroup sg = SecurityGroup.fromSecurityGroupId(
-                        this, "ReportLambdaSg", cfg.lambdaSecurityGroupId());
-                fnBuilder.securityGroups(List.of(sg));
-            }
-        }
+                .environment(env)
+                .vpc(vpc)
+                .vpcSubnets(SubnetSelection.builder()
+                        .subnetType(SubnetType.PUBLIC)
+                        .build())
+                .allowPublicSubnet(true)
+                .securityGroups(List.of(reportSg));
 
         Function reportFn = fnBuilder.build();
 
@@ -130,7 +124,6 @@ public class RelatorioStack extends Stack {
                 .resources(List.of("*"))
                 .build());
 
-        // 08:00 America/Sao_Paulo = 11:00 UTC (BRT UTC-3)
         Rule daily = Rule.Builder.create(this, "ReportDailyRule")
                 .ruleName("feedbacks-report-diario")
                 .description("Relatório diário 08:00 America/Sao_Paulo (cron 0 11 * * ? *)")
@@ -163,32 +156,30 @@ public class RelatorioStack extends Stack {
         CfnOutput.Builder.create(this, "RelatoriosBucketName")
                 .value(reportsBucket.getBucketName())
                 .build();
+        CfnOutput.Builder.create(this, "ReportLambdaSecurityGroupId")
+                .value(reportSg.getSecurityGroupId())
+                .description("SG da Lambda report — autorizar no SG do RDS :5432")
+                .build();
         CfnOutput.Builder.create(this, "ReportVpcNote")
-                .value(cfg.vpcId() == null || cfg.vpcId().isBlank()
-                        ? "Lambda fora de VPC — defina FEEDBACKS_REPORT_VPC_ID (+ SG) para RDS (AD-17)"
-                        : "Lambda na VPC " + cfg.vpcId())
+                .value("Lambda na VPC default (public + allowPublicSubnet); SG " + reportSg.getSecurityGroupId())
                 .build();
     }
 
     /**
-     * Configuração — VPC/DB via env ou overrides (D7 / AD-17).
+     * Configuração — DB via env; VPC default sempre (AD-17 demo).
      */
     public record RelatorioStackConfig(
             String functionZipPath,
             String adminEmailSecretName,
             String dbSecretName,
-            String bucketName,
-            String vpcId,
-            String lambdaSecurityGroupId) {
+            String bucketName) {
 
         public static RelatorioStackConfig defaults() {
             return new RelatorioStackConfig(
                     null,
                     "feedbacks/adminEmail",
                     blankToNull(System.getenv("FEEDBACKS_DB_SECRET_NAME")),
-                    null,
-                    blankToNull(System.getenv("FEEDBACKS_REPORT_VPC_ID")),
-                    blankToNull(System.getenv("FEEDBACKS_REPORT_SG_ID")));
+                    null);
         }
 
         private static String blankToNull(String value) {

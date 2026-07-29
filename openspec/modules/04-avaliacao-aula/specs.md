@@ -17,7 +17,7 @@
 ### SPEC-7.1 — Criar com sucesso
 
 **Given** Estudante inscrito na Aula e JWT `ESTUDANTE`  
-**When** `POST /api/v1/avaliacoes` com `aulaId`, `descricao`, `nota` ∈ [0,10]  
+**When** `POST /avaliacao` com `aulaId`, `descricao`, `nota` ∈ [0,10]  
 **Then** **201** com `id`, `aulaId`, `cursoId`, `estudanteId` (=sub), `descricao`, `nota`, `urgencia`, `ocorridoEm`  
 **And** Avaliação recuperável no GET  
 
@@ -72,7 +72,7 @@
 
 ### SPEC-8.1 — Campos
 
-**When** Admin `GET /api/v1/avaliacoes`  
+**When** Admin `GET /avaliacao`  
 **Then** cada item tem `nota`, `urgencia`, `ocorridoEm`, `aulaId`, `cursoId`  
 
 ### SPEC-8.2 — Escopo Estudante

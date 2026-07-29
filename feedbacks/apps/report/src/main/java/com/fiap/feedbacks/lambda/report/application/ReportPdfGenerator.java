@@ -1,6 +1,8 @@
 package com.fiap.feedbacks.lambda.report.application;
 
+import com.fiap.feedbacks.lambda.report.domain.AvaliacaoSnapshot;
 import com.fiap.feedbacks.lambda.report.domain.ReportAggregates;
+import com.fiap.feedbacks.lambda.report.domain.ReportWindow;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Font;
@@ -14,16 +16,26 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Gera PDF tabular leve (OpenPDF) com métricas do período (D6).
+ * Gera PDF tabular leve (OpenPDF) com métricas e lista individual do período (D6).
  */
 @ApplicationScoped
 public class ReportPdfGenerator {
 
+    private static final DateTimeFormatter DATA_ENVIO =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ReportWindow.ZONE_SP);
+
     public byte[] generate(ReportAggregates aggregates) {
+        return generate(aggregates, List.of());
+    }
+
+    public byte[] generate(ReportAggregates aggregates, List<AvaliacaoSnapshot> rows) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             Document document = new Document();
@@ -71,6 +83,31 @@ public class ReportPdfGenerator {
                 }
             }
             document.add(dayTable);
+            document.add(new Paragraph(" "));
+
+            document.add(new Paragraph("Avaliações (Descrição / Urgência / Data de envio)", titleFont));
+            PdfPTable items = new PdfPTable(3);
+            items.setWidthPercentage(100);
+            addCell(items, "Descrição", bodyFont);
+            addCell(items, "Urgência", bodyFont);
+            addCell(items, "Data de envio", bodyFont);
+            List<AvaliacaoSnapshot> ordered = rows == null
+                    ? List.of()
+                    : rows.stream()
+                            .sorted(Comparator.comparing(AvaliacaoSnapshot::ocorridoEm).reversed())
+                            .toList();
+            if (ordered.isEmpty()) {
+                addCell(items, "Nenhuma avaliação no período", bodyFont);
+                addCell(items, "", bodyFont);
+                addCell(items, "", bodyFont);
+            } else {
+                for (AvaliacaoSnapshot row : ordered) {
+                    addCell(items, row.descricao() == null ? "" : row.descricao(), bodyFont);
+                    addCell(items, row.urgencia(), bodyFont);
+                    addCell(items, DATA_ENVIO.format(row.ocorridoEm()), bodyFont);
+                }
+            }
+            document.add(items);
 
             document.close();
             return out.toByteArray();
@@ -82,5 +119,9 @@ public class ReportPdfGenerator {
     private static void addRow(PdfPTable table, String left, String right, Font font) {
         table.addCell(new PdfPCell(new Phrase(left, font)));
         table.addCell(new PdfPCell(new Phrase(right, font)));
+    }
+
+    private static void addCell(PdfPTable table, String text, Font font) {
+        table.addCell(new PdfPCell(new Phrase(text, font)));
     }
 }

@@ -28,11 +28,11 @@ flowchart LR
 
 | Modo | Lambda report | RDS | Quando usar |
 | --- | --- | --- | --- |
-| **Demo acadêmico (custo)** | Fora de VPC | Público (`PubliclyAccessible`); secret `feedbacks/db`; `FEEDBACKS_DB_SECRET_NAME` | Conta sem NAT/subnets privadas; prazo/teardown |
-| **Alvo AD-17** | VPC + SG → :5432 | Privado, sem IP público | Quando houver private + egress (NAT ou endpoints) |
+| **Demo acadêmico (custo)** | VPC default (subnets públicas + `allowPublicSubnet`); SG `feedbacks-report-lambda`; secret `feedbacks/db`; `FEEDBACKS_DB_SECRET_NAME` | Público (`PubliclyAccessible`); SG do RDS autoriza SG da Lambda (+ ECS) | Conta sem NAT/subnets privadas; prazo/teardown |
+| **Alvo AD-17** | VPC privada + SG → :5432 | Privado, sem IP público | Quando houver private + egress (NAT ou endpoints) |
 
 Sem secret DB: `FEEDBACKS_REPORT_JDBC_ENABLED=false` → read model vazio (SPEC-12.5 zeros).
-Com secret: JDBC on + agregados reais.
+Com secret: JDBC on + agregados reais + lista Descrição/Urgência/Data.
 ---
 
 ## 2. Pacotes (`feedbacks/apps/report`)
@@ -70,7 +70,8 @@ com.fiap.feedbacks.lambda.report
 | Concern | Convenção |
 | --- | --- |
 | Key | `relatorios/<periodo>/yyyy-MM-dd/<uuid>.pdf` |
-| SES | HTML com tipo + período + agregados; `adminEmail` |
+| SES | HTML com tipo + período + agregados + tabela Descrição/Urgência/Data de envio; `adminEmail` |
+| PDF | Mesmos agregados + lista individual (Descrição \| Urgência \| Data de envio) |
 | Demo | `aws lambda invoke` com `periodo` (AD-10) |
 
 ---
@@ -79,8 +80,9 @@ com.fiap.feedbacks.lambda.report
 
 - Bucket S3; EventBridge: diário 08:00 SP; segunda 08:00 SP; IAM SES + S3 + secrets.
 - JDBC: env `FEEDBACKS_DB_SECRET_NAME` → `DB_*` + `FEEDBACKS_REPORT_JDBC_ENABLED=true`.
-- VPC opcional: `FEEDBACKS_REPORT_VPC_ID` (+ `FEEDBACKS_REPORT_SG_ID`) para alvo AD-17;
-  omitido na demo (Lambda fora de VPC + RDS público).
+- Rede demo: Lambda na VPC default com SG `feedbacks-report-lambda` (não usa
+  `FEEDBACKS_REPORT_VPC_ID` / Lambda fora de VPC). Após `harden-rds-sg`, ingress RDS
+  via SGs da Lambda e das tasks ECS — sem `0.0.0.0/0`.
 - Seed demo: `feedbacks/infra/scripts/seed-report-demo.sql` (avaliações nos últimos 7 dias SP).
 - Fora: ECS/ECR pipeline (FR-15); alterar SRP do alerta.
 
@@ -88,8 +90,8 @@ com.fiap.feedbacks.lambda.report
 
 ## 6. Testes
 
-- Unit: janelas (fronteira SP); agregados diário/semanal; HTML/PDF ports;
-  período vazio → entrega zeros; `periodo` inválido → falha clara.
+- Unit: janelas (fronteira SP); agregados diário/semanal; lista Descrição/Urgência/Data;
+  HTML/PDF ports; período vazio → entrega zeros; `periodo` inválido → falha clara.
 - JaCoCo ≥ 90% (AD-14).
 
 ---

@@ -57,11 +57,11 @@ Ao persistir Avaliação, o sistema SHALL atribuir Urgência `BAIXA` quando `not
 ### Requirement: Urgência disponível para consulta
 
 O sistema SHALL expor o campo `urgencia` nas respostas de criação e de listagem
-(`GET /api/v1/avaliacoes`), tornando-o disponível para o read model de relatório (AD-16)
+(`GET /avaliacao`), tornando-o disponível para o read model de relatório (AD-16)
 e para o fluxo de alerta (FR-10, fora desta change).
 
 #### Scenario: SPEC-9.7 — Listagem inclui urgencia
 
-- **WHEN** existe pelo menos uma Avaliação persistida e o cliente autorizado envia `GET /api/v1/avaliacoes`
+- **WHEN** existe pelo menos uma Avaliação persistida e o cliente autorizado envia `GET /avaliacao`
 - **THEN** cada item inclui `urgencia` ∈ {`ALTA`,`MEDIA`,`BAIXA`}
 - **AND** inclui `nota` e `ocorridoEm`

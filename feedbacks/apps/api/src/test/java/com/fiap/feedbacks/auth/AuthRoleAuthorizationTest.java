@@ -152,7 +152,7 @@ class AuthRoleAuthorizationTest {
                 .contentType(ContentType.JSON)
                 .body("{\"descricao\":\"Feedback\"}")
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(403)
                 .body("code", equalTo("AUTH_FORBIDDEN"));
@@ -185,7 +185,7 @@ class AuthRoleAuthorizationTest {
                 .contentType(ContentType.JSON)
                 .body("{\"aulaId\":\"%s\",\"descricao\":\"Feedback\",\"nota\":7}".formatted(aulaId))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201)
                 .body("urgencia", equalTo("MEDIA"))
@@ -240,7 +240,7 @@ class AuthRoleAuthorizationTest {
         given()
                 .header("Authorization", "Bearer " + adminToken)
                 .when()
-                .get("/api/v1/avaliacoes")
+                .get("/avaliacao")
                 .then()
                 .statusCode(200)
                 .body("findAll { it.aulaId == '%s' || it.aulaId == '%s' }".formatted(aulaA, aulaB), hasSize(2));
@@ -266,7 +266,7 @@ class AuthRoleAuthorizationTest {
         given()
                 .header("Authorization", "Bearer " + estudanteToken)
                 .when()
-                .get("/api/v1/avaliacoes")
+                .get("/avaliacao")
                 .then()
                 .statusCode(200)
                 .body("estudanteId", org.hamcrest.Matchers.everyItem(equalTo(ESTUDANTE_ID.toString())))
@@ -294,7 +294,7 @@ class AuthRoleAuthorizationTest {
                 .contentType(ContentType.JSON)
                 .body("{\"aulaId\":\"%s\",\"descricao\":\"%s\",\"nota\":%d}".formatted(aulaId, descricao, nota))
                 .when()
-                .post("/api/v1/avaliacoes")
+                .post("/avaliacao")
                 .then()
                 .statusCode(201);
     }

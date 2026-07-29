@@ -7,11 +7,11 @@ alerta (`lambda-report`) agrega Avaliações no RDS (read-only), envia e-mail HT
 SES ao Administrador e grava PDF no S3. Derivado da change
 `relatorios-ses-s3-lambda-quarkus` (módulo 06).
 
-**Envelope demo (conectividade):** a leitura JDBC MAY ocorrer com `lambda-report` fora
-de VPC contra endpoint RDS público quando o alvo AD-17 (VPC privada + RDS sem IP
-público) não estiver provisionado na conta — ver AD-17 *Demo academic exception* e
-módulo `06-relatorios/design.md`. Requisitos de agregados/janela/entrega abaixo
-permanecem inalterados.
+**Envelope demo (conectividade):** a Lambda report roda na VPC default (subnets
+públicas + `allowPublicSubnet`) com SG `feedbacks-report-lambda`, autorizada no SG
+do RDS junto com o SG das tasks ECS — sem `0.0.0.0/0` após `harden-rds-sg`. Ver AD-17
+e módulo `06-relatorios/design.md`. Requisitos de agregados/janela/entrega abaixo
+permanecem; a lista individual Descrição/Urgência/Data é **aditiva**.
 
 ## Requirements
 
@@ -22,7 +22,9 @@ O sistema SHALL, quando `periodo` = `"semanal"`, consolidar Avaliações cuja
 no fuso `America/Sao_Paulo`, em uma função serverless distinta da API e do alerta
 (`lambda-report`, Quarkus + `quarkus-amazon-lambda`). O Relatório semanal MUST incluir
 média de notas, quantidade de Avaliações **por dia civil SP** e quantidade por nível
-de Urgência persistido (FR-11, AD-6, AD-13, AD-16).
+de Urgência persistido (FR-11, AD-6, AD-13, AD-16). O HTML e o PDF MUST também listar
+cada Avaliação da janela com **Descrição**, **Urgência** e **Data de envio**
+(`ocorrido_em` formatado em `America/Sao_Paulo`).
 
 #### Scenario: SPEC-11.1 — Semanal agrega média, qty/dia e qty/urgência
 
@@ -31,6 +33,13 @@ de Urgência persistido (FR-11, AD-6, AD-13, AD-16).
 - **THEN** o relatório gerado contém média das notas do período
 - **AND** contém quantidade de Avaliações agrupada por dia civil `America/Sao_Paulo`
 - **AND** contém quantidade por urgência (`ALTA`, `MEDIA`, `BAIXA`)
+
+#### Scenario: SPEC-11.1b — Semanal lista Descrição / Urgência / Data de envio
+
+- **WHEN** a Lambda report é invocada com `periodo` = `"semanal"` e existem Avaliações
+  na janela
+- **THEN** o HTML e o PDF incluem tabela com Descrição, Urgência e Data de envio
+  de cada Avaliação da janela
 
 #### Scenario: SPEC-11.2 — Janela semanal é civil SP (não rolling UTC)
 
@@ -44,7 +53,8 @@ de Urgência persistido (FR-11, AD-6, AD-13, AD-16).
 O sistema SHALL, quando `periodo` = `"diario"`, consolidar Avaliações do **dia civil
 anterior** em `America/Sao_Paulo` (filtro em `ocorrido_em`). O Relatório diário MUST
 incluir média de notas do dia, quantidade total e quantidade por Urgência, e MUST
-coexistir com o Relatório semanal (não o substitui) (FR-17, AD-6, AD-16).
+coexistir com o Relatório semanal (não o substitui) (FR-17, AD-6, AD-16). O HTML e o
+PDF MUST listar Descrição, Urgência e Data de envio de cada Avaliação do dia.
 
 #### Scenario: SPEC-17.1 — Diário agrega média, qty total e qty/urgência
 

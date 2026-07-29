@@ -65,7 +65,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/cursos/{cursoId}/inscricoes` | `ESTUDANTE` | Inscreve no Curso (substitui stub) |
 | `POST` | `/api/v1/cursos/{cursoId}/aulas/{aulaId}/inscricoes` | `ESTUDANTE` | Inscreve na Aula (**novo**) |
-| `POST` | `/api/v1/avaliacoes` | `ESTUDANTE` | Stub + **gate FR-6** (sem persistir Avaliação real) |
+| `POST` | `/avaliacao` | `ESTUDANTE` | Stub + **gate FR-6** (sem persistir Avaliação real) |
 
 Sem GET de inscrição no MVP.
 
@@ -195,7 +195,7 @@ Sem body (ou body vazio `{}`). Identidade vem do JWT; ids vêm do path.
 }
 ```
 
-### Gate em `POST /avaliacoes` (stub)
+### Gate em `POST /avaliacao` (stub)
 
 Request mínimo para o gate (sem fechar contrato FR-7):
 

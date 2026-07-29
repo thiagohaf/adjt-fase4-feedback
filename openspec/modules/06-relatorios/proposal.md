@@ -22,7 +22,7 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 | Stakeholder | Valor entregue |
 | --- | --- |
-| **Administrador (Bruno)** | E-mail diário/semanal com agregados + PDF no S3. |
+| **Administrador (Bruno)** | E-mail diário/semanal com agregados + lista Descrição/Urgência/Data + PDF no S3. |
 | **Desenvolvedor** | Segunda Lambda SRP (Quarkus) + EventBridge + S3 narráveis. |
 | **Produto** | Fecha UJ-4; enunciado ≥2 serverless + relatório semanal. |
 
@@ -32,9 +32,9 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 | # | Capacidade | Detalhe |
 | --- | --- | --- |
-| 1 | **Lambda report** | Quarkus; `periodo=diario\|semanal`; RDS read-only (JDBC). Demo: Lambda fora de VPC + RDS público; alvo AD-17: VPC + RDS privado. |
-| 2 | **Agregados** | Diário/semanal conforme AD-16; janelas civis SP (AD-6). |
-| 3 | **HTML + PDF** | SES + S3 key canônica. |
+| 1 | **Lambda report** | Quarkus; `periodo=diario\|semanal`; RDS read-only (JDBC). Demo: VPC default + SG `feedbacks-report-lambda` (subnets públicas + `allowPublicSubnet`); alvo AD-17: VPC privada + RDS privado. |
+| 2 | **Agregados + lista** | Diário/semanal conforme AD-16; janelas civis SP (AD-6). HTML/PDF listam Descrição \| Urgência \| Data de envio. |
+| 3 | **HTML + PDF** | SES + S3 key canônica (agregados + lista individual). |
 | 4 | **EventBridge + invoke** | Crons 08:00 SP; demo via invoke (AD-10). |
 | 5 | **CDK** | Stack relatório (S3, Lambda, rules, IAM/secrets). |
 | 6 | **Testes** | Unitários janela/agregação/entrega; JaCoCo ≥ 90%. |
@@ -52,8 +52,8 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 - Avaliações já persistem `nota`, `urgencia`, `ocorrido_em`.
 - Um Administrador de demo; SES sandbox OK.
-- RDS demo provisionável (público) + secret `feedbacks/db`, **ou** VPC/SG importáveis no CDK (AD-17).
-- Sem NAT na conta demo: preferir RDS público + Lambda fora de VPC (exceção documentada no AD-17).
+- RDS demo provisionável (público) + secret `feedbacks/db`; Lambda na VPC default com SG `feedbacks-report-lambda` (AD-17 envelope demo).
+- Sem NAT na conta demo: RDS público + Lambda em subnets públicas da VPC default (`allowPublicSubnet`); SG do RDS autoriza o SG da Lambda (sem `0.0.0.0/0` após `harden-rds-sg`).
 
 ## 4. Riscos e mitigações
 
@@ -73,7 +73,7 @@ UJ-4 e FR-11/12/17 falham na demo.
 
 ## 6. Critério de pronto do módulo
 
-- [x] Invoke `diario` → HTML + PDF com agregados do dia civil anterior.
-- [x] Invoke `semanal` → HTML + PDF com média, qty/dia e qty/urgência.
+- [x] Invoke `diario` → HTML + PDF com agregados do dia civil anterior + lista Descrição/Urgência/Data de envio.
+- [x] Invoke `semanal` → HTML + PDF com média, qty/dia, qty/urgência + lista Descrição/Urgência/Data de envio.
 - [x] Crons EventBridge documentados (08:00 SP).
 - [x] Sem mutação de domínio; JaCoCo ≥ 90%; alerta/API intactos.
