@@ -79,7 +79,7 @@ public class ApiStack extends Stack {
         SecurityGroup ecsSg = SecurityGroup.Builder.create(this, "ApiEcsSg")
                 .vpc(vpc)
                 .securityGroupName("feedbacks-api-ecs")
-                .description("ECS tasks da API — origem permitida no SG do RDS :5432")
+                .description("ECS API tasks - allowed source for RDS SG :5432")
                 .allowAllOutbound(true)
                 .build();
 
@@ -217,7 +217,7 @@ public class ApiStack extends Stack {
                 .build();
         CfnOutput.Builder.create(this, "ApiEcsSecurityGroupId")
                 .value(ecsSg.getSecurityGroupId())
-                .description("SG das tasks ECS — autorizar no SG do RDS :5432")
+                .description("SG das tasks ECS - autorizar no SG do RDS :5432")
                 .build();
         CfnOutput.Builder.create(this, "ApiHealthUrl")
                 .value(scheme
