@@ -14,7 +14,7 @@ SES sandbox com e-mail verificado; secret `feedbacks/jwt` + `feedbacks/db`.
 Atualize o `baseUrl` do Postman com o `ApiAlbDns` do summary do `deploy(all)`.
 
 ALB demo (atualizar se redeploy — output `ApiAlbDns`):  
-`http://Feedba-ApiSe-hGCfix1THZyT-1147675187.us-east-1.elb.amazonaws.com`  
+`http://Feedba-ApiSe-N6YToLUcYpnv-461905818.us-east-1.elb.amazonaws.com`  
 Health: `/api/v1/health` · Ready: `/q/health/ready` · Alarme: `feedbacks-api-target-5xx` (SNS → e-mail admin)
 
 ## Checklist pré-gravação
